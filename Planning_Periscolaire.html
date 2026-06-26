@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Planning Périscolaire – Lola & Théa</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f2f8;color:#1e2235;min-height:100vh;}
+
+/* HEADER */
+.header{background:#1e2235;color:#fff;padding:13px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+.header-title{font-size:1.05rem;font-weight:800;}
+.header-sub{font-size:.72rem;opacity:.5;margin-top:2px;}
+.month-nav{display:flex;align-items:center;gap:8px;}
+.month-nav button{background:#ffffff18;border:1px solid #ffffff25;color:#fff;border-radius:7px;padding:5px 13px;cursor:pointer;font-size:.82rem;transition:background .15s;}
+.month-nav button:hover{background:#ffffff30;}
+.month-label{font-size:.95rem;font-weight:700;min-width:165px;text-align:center;}
+
+/* TABS */
+.tabs{display:flex;background:#fff;border-bottom:2px solid #e4e7f4;padding:0 20px;}
+.tab{padding:11px 22px;font-size:.88rem;font-weight:700;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .15s;color:#aaa;user-select:none;}
+.tab:hover{color:#1e2235;}
+.tab.active.t-lola{border-bottom-color:#e05a8a;color:#e05a8a;}
+.tab.active.t-thea{border-bottom-color:#7c3aed;color:#7c3aed;}
+.tab.active.t-recap{border-bottom-color:#0891b2;color:#0891b2;}
+
+/* LEGENDE roulement */
+.legend{background:#fff;border-bottom:1px solid #e4e7f4;padding:7px 20px;display:flex;flex-wrap:wrap;gap:9px;align-items:center;}
+.leg{display:flex;align-items:center;gap:4px;font-size:.7rem;font-weight:600;}
+.ld{width:12px;height:12px;border-radius:3px;flex-shrink:0;}
+.lM{background:#FFF176;border:1px solid #c8b800;}
+.lA{background:#EF9A9A;border:1px solid #e53935;}
+.lN{background:#90CAF9;border:1px solid #1565C0;}
+.lJ{background:#A5D6A7;border:1px solid #2E7D32;}
+.lF{background:#C8E6C9;border:1px solid #4CAF50;}
+.lR{background:#E0E0E0;border:1px solid #9E9E9E;}
+.lH{background:#F5F5F5;border:1px solid #BDBDBD;}
+.leg-sep{width:1px;height:15px;background:#e4e7f4;}
+
+/* PAGE */
+.page{display:none;}
+.page.active{display:block;}
+.page-inner{display:grid;grid-template-columns:1fr 295px;gap:16px;padding:16px 20px;max-width:1340px;margin:0 auto;}
+@media(max-width:840px){.page-inner{grid-template-columns:1fr;}}
+
+/* CALENDAR */
+.cal-wrap{background:#fff;border-radius:12px;box-shadow:0 2px 10px #0001;overflow:hidden;}
+
+/* 8 colonnes : Sem | Date | Nicolas | Nounou | Matin péri | Midi | Soir | Mercredi/ALSH */
+.cal-head{
+  display:grid;
+  grid-template-columns:38px 50px 46px 72px 72px 72px 72px 80px 1fr;
+  background:#1e2235;color:#fff;font-size:.63rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
+}
+.cal-head div{padding:8px 3px;text-align:center;}
+
+.day-row{
+  display:grid;
+  grid-template-columns:38px 50px 46px 72px 72px 72px 72px 80px 1fr;
+  border-bottom:1px solid #f0f2f8;min-height:46px;transition:background .1s;
+}
+.day-row:last-child{border-bottom:none;}
+.day-row:hover{background:#fafbff;}
+.day-row.we{background:#f8f8fb;}
+.day-row.feri{background:#fff7f0;}
+.day-row.vac{background:#f0fdf4;}
+.vac-badge{font-size:.55rem;background:#bbf7d0;color:#166534;border-radius:3px;padding:1px 4px;font-weight:700;}
+
+.cell{padding:5px 3px;display:flex;align-items:center;justify-content:center;}
+.cell-col{flex-direction:column;gap:2px;}
+
+/* Roulement badge */
+.rb{font-weight:800;font-size:.68rem;border-radius:4px;padding:3px 7px;min-width:22px;text-align:center;}
+.rb-M{background:#FFF176;color:#7A6000;border:1px solid #c8b800;}
+.rb-A{background:#EF9A9A;color:#7f0000;border:1px solid #e53935;}
+.rb-N{background:#90CAF9;color:#0d3c7a;border:1px solid #1565C0;}
+.rb-J{background:#A5D6A7;color:#1B5E20;border:1px solid #388E3C;}
+.rb-F{background:#C8E6C9;color:#1B5E20;border:1px solid #4CAF50;}
+.rb-R{background:#E0E0E0;color:#666;border:1px solid #BDBDBD;}
+.rb-H{background:#F5F5F5;color:#bbb;border:1px solid #e0e0e0;}
+
+.date-n{font-weight:700;font-size:.85rem;}
+.date-n.we{color:#bbb;}
+.date-d{font-size:.65rem;color:#aaa;}
+.wkn{font-size:.6rem;color:#ccc;font-weight:700;}
+
+/* BOUTONS DE SÉLECTION */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;
+  border-radius:5px;padding:3px 7px;font-size:.65rem;font-weight:700;
+  cursor:pointer;user-select:none;transition:all .13s;text-align:center;white-space:nowrap;
+  border:1.5px solid transparent;min-width:54px;
+}
+.btn:hover{transform:scale(1.06);}
+.off{background:#f0f2f8;border-color:#d0d4e8;color:#c0c4d8;}
+
+/* Nounou - orange doux */
+.on-nou{background:#FF8C42;color:#fff;border-color:#d96800;box-shadow:0 2px 5px #FF8C4230;}
+/* Péri matin - rose/lola ou violet/théa */
+.on-peri-lola{background:#e05a8a;color:#fff;border-color:#b8426c;box-shadow:0 2px 5px #e05a8a30;}
+.on-peri-thea{background:#7c3aed;color:#fff;border-color:#5b24cc;box-shadow:0 2px 5px #7c3aed30;}
+/* Mercredi */
+.on-merc-lola{background:#c0446e;color:#fff;border-color:#8a2e4e;}
+.on-merc-thea{background:#5b24cc;color:#fff;border-color:#3d0ea0;}
+/* ALSH */
+.on-alsh{background:#0891b2;color:#fff;border-color:#0671a0;box-shadow:0 2px 5px #0891b230;}
+/* Bloqué */
+.blocked{color:#e8b4c4;font-size:.6rem;text-align:center;}
+.note-cell{padding:4px 5px;}
+.note-inp{width:100%;border:none;background:transparent;font-size:.68rem;color:#555;outline:none;padding:2px 4px;border-radius:4px;font-family:inherit;}
+.note-inp:focus{background:#f5f6ff;border:1px solid #c7caee;}
+.note-inp::placeholder{color:#ccc;}
+
+/* SIDEBAR */
+.sidebar{display:flex;flex-direction:column;gap:13px;}
+
+.total-card{border-radius:12px;padding:17px;box-shadow:0 4px 16px #0002;color:#fff;}
+.tc-lola{background:linear-gradient(135deg,#e05a8a,#c0446e);}
+.tc-thea{background:linear-gradient(135deg,#7c3aed,#5b24cc);}
+.tc-recap{background:linear-gradient(135deg,#0891b2,#0671a0);}
+.tc-label{font-size:.68rem;text-transform:uppercase;letter-spacing:.07em;opacity:.75;margin-bottom:5px;}
+.tc-amount{font-size:1.9rem;font-weight:800;line-height:1;}
+.tc-sub{font-size:.72rem;opacity:.75;margin-top:3px;}
+.tc-cesu{display:flex;align-items:center;gap:7px;margin-top:11px;background:#ffffff18;border-radius:7px;padding:8px 11px;}
+.tc-cesu label{font-size:.72rem;flex:1;}
+.tc-cesu input{width:68px;border:1px solid #ffffff35;background:#ffffff18;color:#fff;border-radius:5px;padding:4px 6px;font-size:.85rem;font-weight:700;text-align:right;outline:none;}
+.tc-reste{display:flex;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid #ffffff20;}
+.tc-reste .rl{font-size:.7rem;opacity:.8;}
+.tc-reste .rv{font-size:1.05rem;font-weight:800;}
+
+.card{background:#fff;border-radius:12px;box-shadow:0 2px 8px #0001;padding:15px 17px;}
+.card-title{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#bbb;margin-bottom:11px;}
+.dr{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f0f2f8;font-size:.76rem;}
+.dr:last-child{border-bottom:none;}
+.dr .dl{color:#888;}
+.dr .dv{font-weight:700;text-align:right;}
+
+.tr{display:flex;gap:6px;align-items:center;padding:4px 0;border-bottom:1px solid #f5f5f5;}
+.tr:last-child{border-bottom:none;}
+.tr label{font-size:.73rem;color:#777;flex:1;}
+.tr input{width:60px;border:1px solid #e0e3ef;border-radius:5px;padding:3px 6px;font-size:.78rem;text-align:right;outline:none;background:#fafbff;}
+.tr input:focus{border-color:#7c3aed;}
+
+/* RECAP */
+.recap-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:18px 20px;max-width:760px;margin:0 auto;}
+@media(max-width:560px){.recap-grid{grid-template-columns:1fr;}}
+.recap-card{background:#fff;border-radius:12px;box-shadow:0 2px 8px #0001;padding:17px;}
+.recap-card h3{font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:11px;}
+.h-lola{color:#e05a8a;} .h-thea{color:#7c3aed;} .h-tot{color:#0891b2;}
+.rbig{font-size:1.75rem;font-weight:800;line-height:1;margin-bottom:3px;}
+.rbig.lola{color:#e05a8a;} .rbig.thea{color:#7c3aed;} .rbig.tot{color:#0891b2;}
+.rm{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f0f2f8;font-size:.76rem;}
+.rm:last-child{border-bottom:none;}
+.rm .mn{color:#aaa;} .rm .mv{font-weight:700;}
+.empty-recap{color:#ccc;font-size:.73rem;}
+.recap-tabs{display:flex;gap:0;background:#fff;border-bottom:2px solid #e4e7f4;padding:0 20px;max-width:1100px;margin:0 auto 0;}
+.recap-tab{padding:9px 18px;font-size:.82rem;font-weight:700;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;color:#aaa;transition:all .15s;user-select:none;}
+.recap-tab:hover{color:#1e2235;}
+.recap-tab.active{border-bottom-color:#0891b2;color:#0891b2;}
+.recap-section{display:none;}.recap-section.active{display:block;}
+/* Tableau mensuel détaillé */
+.mensuel-wrap{padding:16px 20px;max-width:1100px;margin:0 auto;overflow-x:auto;}
+.mensuel-table{width:100%;border-collapse:collapse;font-size:.76rem;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px #0001;}
+.mensuel-table th{background:#1e2235;color:#fff;padding:9px 10px;text-align:center;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;}
+.mensuel-table th.left{text-align:left;}
+.mensuel-table td{padding:8px 10px;border-bottom:1px solid #f0f2f8;text-align:center;vertical-align:middle;}
+.mensuel-table td.left{text-align:left;font-weight:700;color:#1e2235;}
+.mensuel-table tr:last-child td{border-bottom:none;}
+.mensuel-table tr:hover td{background:#fafbff;}
+.mensuel-table tr.total-row td{background:#f0f2f8;font-weight:800;border-top:2px solid #e4e7f4;}
+.mensuel-table tr.total-row td.lola-col{color:#e05a8a;}
+.mensuel-table tr.total-row td.thea-col{color:#7c3aed;}
+.mensuel-table tr.total-row td.glob-col{color:#0891b2;}
+.cell-lola{color:#e05a8a;font-weight:700;}
+.cell-thea{color:#7c3aed;font-weight:700;}
+.cell-glob{color:#0891b2;font-weight:700;}
+.cell-zero{color:#ddd;}
+.badge-mois{display:inline-block;padding:2px 7px;border-radius:4px;font-size:.65rem;font-weight:700;}
+
+/* SAVE/LOAD BAR */
+.save-bar{background:#1a1d2e;border-top:1px solid #2d3255;padding:6px 20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.save-status{font-size:.7rem;color:#6b7280;flex:1;min-width:120px;}
+.save-status.ok{color:#34d399;}
+.save-status.warn{color:#f59e0b;}
+.sbtn{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:7px;font-size:.74rem;font-weight:700;cursor:pointer;border:1.5px solid transparent;transition:all .15s;white-space:nowrap;}
+.sbtn:hover{opacity:.85;transform:translateY(-1px);}
+.sbtn-save{background:#4f46e5;color:#fff;border-color:#3730a3;}
+.sbtn-export{background:#0891b2;color:#fff;border-color:#0671a0;}
+.sbtn-import{background:#374151;color:#fff;border-color:#4b5563;}
+.sbtn-clear{background:transparent;color:#ef4444;border-color:#ef444460;font-size:.68rem;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="header-title">📅 Planning Périscolaire</div>
+    <div class="header-sub">Lola &amp; Théa · Roulement Nicolas Équipe A T3/4 · CNPE Cattenom</div>
+  </div>
+  <div class="month-nav">
+    <button onclick="changeMonth(-1)">◀</button>
+    <span class="month-label" id="monthLabel">—</span>
+    <button onclick="changeMonth(1)">▶</button>
+  </div>
+</div>
+
+<div class="save-bar">
+  <span class="save-status" id="save-status">💾 Non sauvegardé</span>
+  <button class="sbtn sbtn-save" onclick="saveToLocal()">💾 Sauvegarder</button>
+  <button class="sbtn sbtn-export" onclick="exportJSON()">📤 Exporter fichier</button>
+  <label class="sbtn sbtn-import" style="cursor:pointer;">
+    📂 Importer fichier
+    <input type="file" accept=".json" onchange="importJSON(event)" style="display:none;">
+  </label>
+  <button class="sbtn sbtn-clear" onclick="clearMois()">🗑 Effacer le mois</button>
+  <button class="sbtn sbtn-clear" onclick="clearAll()">🗑 Effacer tout</button>
+</div>
+<div class="tabs">
+  <div class="tab t-lola active" onclick="switchTab('lola')">🎀 Lola</div>
+  <div class="tab t-thea"        onclick="switchTab('thea')">🌸 Théa</div>
+  <div class="tab t-recap"       onclick="switchTab('recap')">📊 Récapitulatif</div>
+  <div style="flex:1;"></div>
+  <div id="btn-dup" style="display:flex;align-items:center;gap:6px;padding:0 8px;">
+    <button onclick="dupliquerMois()" id="dup-btn" style="
+      background:#f0f2f8;border:1.5px solid #d0d4e8;color:#555;
+      border-radius:7px;padding:5px 12px;cursor:pointer;font-size:.75rem;font-weight:700;
+      transition:all .15s;display:flex;align-items:center;gap:5px;white-space:nowrap;
+    ">
+      <span>📋</span><span id="dup-label">Copier vers Théa</span>
+    </button>
+    <button onclick="dupliquerNotes()" id="dup-notes-btn" style="
+      background:#f0f2f8;border:1.5px solid #d0d4e8;color:#555;
+      border-radius:7px;padding:5px 12px;cursor:pointer;font-size:.75rem;font-weight:700;
+      transition:all .15s;display:flex;align-items:center;gap:5px;white-space:nowrap;
+    ">
+      <span>📝</span><span id="dup-notes-label">Copier notes vers Théa</span>
+    </button>
+  </div>
+</div>
+
+<div class="legend">
+  <div class="leg"><div class="ld lM"></div>Matin (M)</div>
+  <div class="leg"><div class="ld lA"></div>Après-midi (A)</div>
+  <div class="leg"><div class="ld lN"></div>Nuit (N)</div>
+  <div class="leg"><div class="ld lJ"></div>Journée (J)</div>
+  <div class="leg"><div class="ld lF"></div>Formation (F)</div>
+  <div class="leg"><div class="ld lR"></div>Repos (R)</div>
+  <div class="leg"><div class="ld lH"></div>Non travaillé</div>
+  <div class="leg-sep"></div>
+  <div class="leg"><div class="ld" style="background:#bbf7d0;border-color:#4ade80;"></div>Vacances Zone B</div>
+  <div class="leg"><div class="ld" style="background:#FF8C42;border-color:#d96800;"></div>Nounou matin</div>
+  <div class="leg"><div class="ld" style="background:#e05a8a;border-color:#b8426c;"></div>Péri Lola</div>
+  <div class="leg"><div class="ld" style="background:#7c3aed;border-color:#5b24cc;"></div>Péri Théa</div>
+  <div class="leg"><div class="ld" style="background:#0891b2;border-color:#0671a0;"></div>ALSH</div>
+</div>
+
+<!-- PAGE LOLA -->
+<div class="page active" id="page-lola">
+  <div class="page-inner">
+    <div class="cal-wrap">
+      <div class="cal-head">
+        <div>Sem</div>
+        <div>Date</div>
+        <div>Nicolas</div>
+        <div>🏠 Nounou<br><span style="font-size:.58rem;opacity:.7;">avant école</span></div>
+        <div>☀️ Matin<br><span style="font-size:.58rem;opacity:.7;">périscolaire</span></div>
+        <div>🍽 Midi<br><span style="font-size:.58rem;opacity:.7;">cantine+péri</span></div>
+        <div>🌙 Soir<br><span style="font-size:.58rem;opacity:.7;">périscolaire</span></div>
+        <div>📅 Mercredi</div>
+        <div>📝 Note</div>
+      </div>
+      <div id="cal-lola"></div>
+    </div>
+    <div class="sidebar">
+      <div class="total-card tc-lola">
+        <div class="tc-label">🎀 Total Lola — mois</div>
+        <div class="tc-amount" id="lola-total">0,00 €</div>
+        <div class="tc-sub" id="lola-sub">—</div>
+        <div class="tc-cesu">
+          <label>CESU / aide</label>
+          <input type="number" id="lola-cesu" placeholder="0" min="0" oninput="recalc('lola');autosave()">€
+        </div>
+        <div class="tc-reste">
+          <span class="rl">Reste à payer</span>
+          <span class="rv" id="lola-reste">0,00 €</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Détail Lola</div>
+        <div class="dr"><span class="dl">🏠 Nounou matin</span><span class="dv" id="d-lola-nou">—</span></div>
+        <div class="dr"><span class="dl">☀️ Matin péri</span><span class="dv" id="d-lola-mat">—</span></div>
+        <div class="dr"><span class="dl">🍽 Midi</span><span class="dv" id="d-lola-mid">—</span></div>
+        <div class="dr"><span class="dl">🌙 Soir</span><span class="dv" id="d-lola-soi">—</span></div>
+        <div class="dr"><span class="dl">📅 Merc entier</span><span class="dv" id="d-lola-me">—</span></div>
+        <div class="dr"><span class="dl">📅 Merc mat+repas</span><span class="dv" id="d-lola-mpm">—</span></div>
+        <div class="dr"><span class="dl">📅 Merc AM+repas</span><span class="dv" id="d-lola-mam">—</span></div>
+        <div class="dr"><span class="dl">🏕 ALSH</span><span class="dv" id="d-lola-al">—</span></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Tarifs (modifiables)</div>
+        <div class="tr"><label>🏠 Nounou / enfant / matin</label><input type="number" id="t-nou" value="5.00" step="0.01" oninput="recalcAll();autosave()">€</div>
+        <div class="tr"><label>☀️ Matin périscolaire</label><input type="number" id="t-mat" value="2.32" step="0.01" oninput="recalcAll();autosave()">€</div>
+        <div class="tr"><label>🍽 Midi</label><input type="number" id="t-mid" value="8.69" step="0.01" oninput="recalcAll();autosave()">€</div>
+        <div class="tr"><label>🌙 Soir</label><input type="number" id="t-soi" value="2.32" step="0.01" oninput="recalcAll();autosave()">€</div>
+        <div class="tr"><label>📅 Mercredi entier</label><input type="number" id="t-me" value="23.76" step="0.01" oninput="recalcAll();autosave()">€</div>
+        <div class="tr"><label>📅 Merc matin+repas</label><input type="number" id="t-mpm" value="17.95" step="0.01" oninput="recalcAll();autosave()">€</div>
+        <div class="tr"><label>📅 Merc AM+repas (11h30–18h)</label><input type="number" id="t-mam" value="17.95" step="0.01" oninput="recalcAll();autosave()">€</div>
+        <div style="margin-top:8px;padding-top:8px;border-top:1px solid #f0f2f8;">
+          <div style="font-size:.65rem;color:#bbb;font-weight:700;text-transform:uppercase;margin-bottom:5px;">🏕 ALSH Vacances</div>
+          <div class="tr"><label>2 jours</label><input type="number" id="t-al2" value="39.38" step="0.01" oninput="recalcAll();autosave()">€</div>
+          <div class="tr"><label>3 jours</label><input type="number" id="t-al3" value="55.14" step="0.01" oninput="recalcAll();autosave()">€</div>
+          <div class="tr"><label>4 jours</label><input type="number" id="t-al4" value="69.76" step="0.01" oninput="recalcAll();autosave()">€</div>
+          <div class="tr"><label>5 jours</label><input type="number" id="t-al5" value="84.40" step="0.01" oninput="recalcAll();autosave()">€</div>
+          <div class="tr"><label>Grandes vacances (semaine)</label><input type="number" id="t-als" value="95.04" step="0.01" oninput="recalcAll();autosave()">€</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE THEA -->
+<div class="page" id="page-thea">
+  <div class="page-inner">
+    <div class="cal-wrap">
+      <div class="cal-head">
+        <div>Sem</div>
+        <div>Date</div>
+        <div>Nicolas</div>
+        <div>🏠 Nounou<br><span style="font-size:.58rem;opacity:.7;">avant école</span></div>
+        <div>☀️ Matin<br><span style="font-size:.58rem;opacity:.7;">périscolaire</span></div>
+        <div>🍽 Midi<br><span style="font-size:.58rem;opacity:.7;">cantine+péri</span></div>
+        <div>🌙 Soir<br><span style="font-size:.58rem;opacity:.7;">périscolaire</span></div>
+        <div>📅 Mercredi</div>
+        <div>📝 Note</div>
+      </div>
+      <div id="cal-thea"></div>
+    </div>
+    <div class="sidebar">
+      <div class="total-card tc-thea">
+        <div class="tc-label">🌸 Total Théa — mois</div>
+        <div class="tc-amount" id="thea-total">0,00 €</div>
+        <div class="tc-sub" id="thea-sub">—</div>
+        <div class="tc-cesu">
+          <label>CESU / aide</label>
+          <input type="number" id="thea-cesu" placeholder="0" min="0" oninput="recalc('thea');autosave()">€
+        </div>
+        <div class="tc-reste">
+          <span class="rl">Reste à payer</span>
+          <span class="rv" id="thea-reste">0,00 €</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Détail Théa</div>
+        <div class="dr"><span class="dl">🏠 Nounou matin</span><span class="dv" id="d-thea-nou">—</span></div>
+        <div class="dr"><span class="dl">☀️ Matin péri</span><span class="dv" id="d-thea-mat">—</span></div>
+        <div class="dr"><span class="dl">🍽 Midi</span><span class="dv" id="d-thea-mid">—</span></div>
+        <div class="dr"><span class="dl">🌙 Soir</span><span class="dv" id="d-thea-soi">—</span></div>
+        <div class="dr"><span class="dl">📅 Merc entier</span><span class="dv" id="d-thea-me">—</span></div>
+        <div class="dr"><span class="dl">📅 Merc mat+repas</span><span class="dv" id="d-thea-mpm">—</span></div>
+        <div class="dr"><span class="dl">📅 Merc AM+repas</span><span class="dv" id="d-thea-mam">—</span></div>
+        <div class="dr"><span class="dl">🏕 ALSH</span><span class="dv" id="d-thea-al">—</span></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Roulement Nicolas</div>
+        <div style="font-size:.72rem;color:#666;line-height:2;">
+          <div>🟡 <b>M</b> Matin 5h50–13h35</div>
+          <div>🔴 <b>A</b> Après-midi 13h20–21h05</div>
+          <div>🔵 <b>N</b> Nuit 20h50–6h05</div>
+          <div>🟢 <b>J</b> Journée hors quart</div>
+          <div>🟢 <b>F</b> Formation</div>
+          <div>⬜ <b>R</b> Repos aménagé</div>
+          <div>⬜ <b>H</b> Non travaillé</div>
+          <div style="margin-top:6px;padding-top:6px;border-top:1px solid #f0f2f8;color:#aaa;font-size:.68rem;">
+    </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE RECAP -->
+<div class="page" id="page-recap">
+  <!-- Sous-onglets récap -->
+  <div class="recap-tabs">
+    <button onclick="switchTab('lola')" style="
+      background:none;border:none;color:#0891b2;font-size:.82rem;font-weight:700;
+      cursor:pointer;padding:10px 0 10px 0;margin-right:12px;display:flex;align-items:center;gap:5px;
+    " title="Retour au planning">◀ Retour</button>
+    <div class="recap-tab active" onclick="switchRecapTab('mensuel')">📅 Mensuel</div>
+    <div class="recap-tab" onclick="switchRecapTab('annuel')">📆 Annuel</div>
+  </div>
+
+  <!-- Section mensuelle détaillée -->
+  <div class="recap-section active" id="recap-mensuel">
+    <div class="mensuel-wrap">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap;">
+        <div style="font-size:.78rem;color:#888;">Mois affiché :</div>
+        <select id="recap-month-sel" onchange="renderRecap()" style="border:1px solid #e0e3ef;border-radius:6px;padding:5px 10px;font-size:.8rem;font-weight:700;outline:none;background:#fff;color:#1e2235;cursor:pointer;"></select>
+        <div style="flex:1;"></div>
+        <div style="font-size:.72rem;color:#bbb;">Cliquez sur un mois dans l'annuel pour le centrer ici</div>
+      </div>
+      <div id="mensuel-content"></div>
+    </div>
+  </div>
+
+  <!-- Section annuelle -->
+  <div class="recap-section" id="recap-annuel">
+    <div class="recap-grid">
+      <div class="recap-card">
+        <h3 class="h-lola">🎀 Lola — cumul</h3>
+        <div class="rbig lola" id="r-lola-tot">0,00 €</div>
+        <div style="font-size:.72rem;color:#bbb;margin-bottom:10px;">année scolaire</div>
+        <div id="r-lola-months"></div>
+      </div>
+      <div class="recap-card">
+        <h3 class="h-thea">🌸 Théa — cumul</h3>
+        <div class="rbig thea" id="r-thea-tot">0,00 €</div>
+        <div style="font-size:.72rem;color:#bbb;margin-bottom:10px;">année scolaire</div>
+        <div id="r-thea-months"></div>
+      </div>
+      <div class="recap-card" style="grid-column:1/-1;">
+        <h3 class="h-tot">📊 Total global Lola + Théa</h3>
+        <div class="rbig tot" id="r-grand-tot">0,00 €</div>
+        <div style="font-size:.72rem;color:#bbb;margin-bottom:10px;">toutes gardes confondues</div>
+        <div id="r-global-months"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// ROULEMENT EQUIPE A – T3/4 – CNPE Cattenom
+// ═══════════════════════════════════════════
+const CYCLE=['M','A','A','N','N','R','H','R','R','R','M','M','A','A','A','N','N','R','H','R','H','R','M','M','A','A','N','N','N','R','R','R','H','R','H','J','J','J','J','J','R','H','F','F','F','F','H','M','M'];
+const JAN1_POS=31;
+function getRoul(date){
+  const d=Math.round((date-new Date(2026,0,1))/86400000);
+  return CYCLE[((JAN1_POS+d)%49+49)%49];
+}
+
+const FERIES=new Set(['2025-11-01','2025-11-11','2025-12-25','2026-01-01','2026-04-06','2026-05-01','2026-05-08','2026-05-14','2026-05-25','2026-07-14','2026-08-15','2026-11-01','2026-11-11','2026-12-25']);
+// Vacances scolaires Zone B (reprise le lundi)
+const VACANCES=new Set(['2025-10-18','2025-10-19','2025-10-20','2025-10-21','2025-10-22','2025-10-23','2025-10-24','2025-10-25','2025-10-26','2025-10-27','2025-10-28','2025-10-29','2025-10-30','2025-10-31','2025-11-01','2025-11-02','2025-12-20','2025-12-21','2025-12-22','2025-12-23','2025-12-24','2025-12-25','2025-12-26','2025-12-27','2025-12-28','2025-12-29','2025-12-30','2025-12-31','2026-01-01','2026-01-02','2026-01-03','2026-01-04','2026-02-07','2026-02-08','2026-02-09','2026-02-10','2026-02-11','2026-02-12','2026-02-13','2026-02-14','2026-02-15','2026-02-16','2026-02-17','2026-02-18','2026-02-19','2026-02-20','2026-02-21','2026-02-22','2026-04-04','2026-04-05','2026-04-06','2026-04-07','2026-04-08','2026-04-09','2026-04-10','2026-04-11','2026-04-12','2026-04-13','2026-04-14','2026-04-15','2026-04-16','2026-04-17','2026-04-18','2026-04-19','2026-07-04','2026-07-05','2026-07-06','2026-07-07','2026-07-08','2026-07-09','2026-07-10','2026-07-11','2026-07-12','2026-07-13','2026-07-14','2026-07-15','2026-07-16','2026-07-17','2026-07-18','2026-07-19','2026-07-20','2026-07-21','2026-07-22','2026-07-23','2026-07-24','2026-07-25','2026-07-26','2026-07-27','2026-07-28','2026-07-29','2026-07-30','2026-07-31','2026-08-01','2026-08-02','2026-08-03','2026-08-04','2026-08-05','2026-08-06','2026-08-07','2026-08-08','2026-08-09','2026-08-10','2026-08-11','2026-08-12','2026-08-13','2026-08-14','2026-08-15','2026-08-16','2026-08-17','2026-08-18','2026-08-19','2026-08-20','2026-08-21','2026-08-22','2026-08-23','2026-08-24','2026-08-25','2026-08-26','2026-08-27','2026-08-28','2026-08-29','2026-08-30','2026-10-17','2026-10-18','2026-10-19','2026-10-20','2026-10-21','2026-10-22','2026-10-23','2026-10-24','2026-10-25','2026-10-26','2026-10-27','2026-10-28','2026-10-29','2026-10-30','2026-10-31','2026-11-01','2026-12-19','2026-12-20','2026-12-21','2026-12-22','2026-12-23','2026-12-24','2026-12-25','2026-12-26','2026-12-27','2026-12-28','2026-12-29','2026-12-30','2026-12-31','2027-01-01','2027-01-02','2027-01-03']);
+const VAC_LABELS={'2025-10-18':'Toussaint 25','2025-10-19':'Toussaint 25','2025-10-20':'Toussaint 25','2025-10-21':'Toussaint 25','2025-10-22':'Toussaint 25','2025-10-23':'Toussaint 25','2025-10-24':'Toussaint 25','2025-10-25':'Toussaint 25','2025-10-26':'Toussaint 25','2025-10-27':'Toussaint 25','2025-10-28':'Toussaint 25','2025-10-29':'Toussaint 25','2025-10-30':'Toussaint 25','2025-10-31':'Toussaint 25','2025-11-01':'Toussaint 25','2025-11-02':'Toussaint 25','2025-12-20':'Noël 25','2025-12-21':'Noël 25','2025-12-22':'Noël 25','2025-12-23':'Noël 25','2025-12-24':'Noël 25','2025-12-25':'Noël 25','2025-12-26':'Noël 25','2025-12-27':'Noël 25','2025-12-28':'Noël 25','2025-12-29':'Noël 25','2025-12-30':'Noël 25','2025-12-31':'Noël 25','2026-01-01':'Noël 25','2026-01-02':'Noël 25','2026-01-03':'Noël 25','2026-01-04':'Noël 25','2026-02-07':'Hiver 26','2026-02-08':'Hiver 26','2026-02-09':'Hiver 26','2026-02-10':'Hiver 26','2026-02-11':'Hiver 26','2026-02-12':'Hiver 26','2026-02-13':'Hiver 26','2026-02-14':'Hiver 26','2026-02-15':'Hiver 26','2026-02-16':'Hiver 26','2026-02-17':'Hiver 26','2026-02-18':'Hiver 26','2026-02-19':'Hiver 26','2026-02-20':'Hiver 26','2026-02-21':'Hiver 26','2026-02-22':'Hiver 26','2026-04-04':'Printemps 26','2026-04-05':'Printemps 26','2026-04-06':'Printemps 26','2026-04-07':'Printemps 26','2026-04-08':'Printemps 26','2026-04-09':'Printemps 26','2026-04-10':'Printemps 26','2026-04-11':'Printemps 26','2026-04-12':'Printemps 26','2026-04-13':'Printemps 26','2026-04-14':'Printemps 26','2026-04-15':'Printemps 26','2026-04-16':'Printemps 26','2026-04-17':'Printemps 26','2026-04-18':'Printemps 26','2026-04-19':'Printemps 26','2026-07-04':'Ete 26','2026-07-05':'Ete 26','2026-07-06':'Ete 26','2026-07-07':'Ete 26','2026-07-08':'Ete 26','2026-07-09':'Ete 26','2026-07-10':'Ete 26','2026-07-11':'Ete 26','2026-07-12':'Ete 26','2026-07-13':'Ete 26','2026-07-14':'Ete 26','2026-07-15':'Ete 26','2026-07-16':'Ete 26','2026-07-17':'Ete 26','2026-07-18':'Ete 26','2026-07-19':'Ete 26','2026-07-20':'Ete 26','2026-07-21':'Ete 26','2026-07-22':'Ete 26','2026-07-23':'Ete 26','2026-07-24':'Ete 26','2026-07-25':'Ete 26','2026-07-26':'Ete 26','2026-07-27':'Ete 26','2026-07-28':'Ete 26','2026-07-29':'Ete 26','2026-07-30':'Ete 26','2026-07-31':'Ete 26','2026-08-01':'Ete 26','2026-08-02':'Ete 26','2026-08-03':'Ete 26','2026-08-04':'Ete 26','2026-08-05':'Ete 26','2026-08-06':'Ete 26','2026-08-07':'Ete 26','2026-08-08':'Ete 26','2026-08-09':'Ete 26','2026-08-10':'Ete 26','2026-08-11':'Ete 26','2026-08-12':'Ete 26','2026-08-13':'Ete 26','2026-08-14':'Ete 26','2026-08-15':'Ete 26','2026-08-16':'Ete 26','2026-08-17':'Ete 26','2026-08-18':'Ete 26','2026-08-19':'Ete 26','2026-08-20':'Ete 26','2026-08-21':'Ete 26','2026-08-22':'Ete 26','2026-08-23':'Ete 26','2026-08-24':'Ete 26','2026-08-25':'Ete 26','2026-08-26':'Ete 26','2026-08-27':'Ete 26','2026-08-28':'Ete 26','2026-08-29':'Ete 26','2026-08-30':'Ete 26','2026-10-17':'Toussaint 26','2026-10-18':'Toussaint 26','2026-10-19':'Toussaint 26','2026-10-20':'Toussaint 26','2026-10-21':'Toussaint 26','2026-10-22':'Toussaint 26','2026-10-23':'Toussaint 26','2026-10-24':'Toussaint 26','2026-10-25':'Toussaint 26','2026-10-26':'Toussaint 26','2026-10-27':'Toussaint 26','2026-10-28':'Toussaint 26','2026-10-29':'Toussaint 26','2026-10-30':'Toussaint 26','2026-10-31':'Toussaint 26','2026-11-01':'Toussaint 26','2026-12-19':'Noel 26','2026-12-20':'Noel 26','2026-12-21':'Noel 26','2026-12-22':'Noel 26','2026-12-23':'Noel 26','2026-12-24':'Noel 26','2026-12-25':'Noel 26','2026-12-26':'Noel 26','2026-12-27':'Noel 26','2026-12-28':'Noel 26','2026-12-29':'Noel 26','2026-12-30':'Noel 26','2026-12-31':'Noel 26','2027-01-01':'Noel 26','2027-01-02':'Noel 26','2027-01-03':'Noel 26'};
+const MOIS=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+const JC=['Di','Lu','Ma','Me','Je','Ve','Sa'];
+
+let curY=2026, curM=7, curChild='lola';
+
+// STATE : clé = "YYYY-MM-DD_enfant"
+// champs : nou(nounou), mat(matin péri), mid(midi), soi(soir), mercE(merc entier), mercPM(merc AM+repas), alsh(0/2/3/4/5/'S')
+const STATE={};
+const ALSH_SEQ=[0,2,3,4,5,'S'];
+const ALSH_LBL={0:'ALSH?',2:'2j',3:'3j',4:'4j',5:'5j','S':'Gdes vacs'};
+
+function sk(y,m,d,c){return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}_${c}`;}
+function dk(y,m,d){return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;}
+function gs(k){if(!STATE[k])STATE[k]={nou:false,mat:false,mid:false,soi:false,mercE:false,mercPM:false,mercAM:false,alsh:0,note:''};return STATE[k];}
+
+function wn(date){
+  const d=new Date(Date.UTC(date.getFullYear(),date.getMonth(),date.getDate()));
+  const day=d.getUTCDay()||7;d.setUTCDate(d.getUTCDate()+4-day);
+  const ys=new Date(Date.UTC(d.getUTCFullYear(),0,1));
+  return Math.ceil((((d-ys)/86400000)+1)/7);
+}
+function dim(y,m){return new Date(y,m+1,0).getDate();}
+
+// ═══════════ TABS ═══════════
+let lastChild='lola';
+function switchTab(t){
+  if(t!=='recap') lastChild=t;
+  curChild=t;
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+  document.querySelector(`.t-${t}`).classList.add('active');
+  document.getElementById(`page-${t}`).classList.add('active');
+  const navBtns=document.querySelectorAll('.month-nav button');
+  const ml=document.getElementById('monthLabel');
+  if(t==='recap'){
+    navBtns.forEach(b=>b.style.visibility='hidden');
+    ml.style.visibility='hidden';
+    renderRecap();
+  } else {
+    navBtns.forEach(b=>b.style.visibility='visible');
+    ml.style.visibility='visible';
+    renderCal(t);
+  }
+  updateDupLabel();
+}
+function changeMonth(d){
+  curM+=d;if(curM>11){curM=0;curY++;}if(curM<0){curM=11;curY--;}
+  document.getElementById('monthLabel').textContent=`${MOIS[curM]} ${curY}`;
+  if(curChild!=='recap') renderCal(curChild);
+}
+
+// ═══════════ RENDER CALENDAR ═══════════
+function renderCal(enfant){
+  const nb=dim(curY,curM);
+  const isl=enfant==='lola';
+  const pCls=isl?'on-peri-lola':'on-peri-thea';
+  const mCls=isl?'on-merc-lola':'on-merc-thea';
+  let html='', prevWk=-1;
+
+  for(let d=1;d<=nb;d++){
+    const date=new Date(curY,curM,d);
+    const dow=date.getDay();
+    const isWE=dow===0||dow===6;
+    const isMe=dow===3;
+    const dkey=dk(curY,curM,d);
+    const isFeri=FERIES.has(dkey);
+    const isVac=VACANCES.has(dkey);
+    const vacLabel=VAC_LABELS[dkey]||'';
+    const r=getRoul(date);
+    const week=wn(date);
+    const k=sk(curY,curM,d,enfant);
+    const s=gs(k);
+
+    const rowCls='day-row'+(isWE?' we':'')+(isFeri?' feri':'')+(isVac&&!isFeri?' vac':'');
+    const wkCell=prevWk!==week?`<div class="cell wkn">S${week}</div>`:`<div class="cell"></div>`;
+    prevWk=week;
+
+    const dateCell=`<div class="cell cell-col">
+      <span class="date-n${isWE?' we':''}">${d}</span>
+      <span class="date-d">${JC[dow]}${isFeri?' 🔶':''}</span>
+      ${isVac&&!isFeri?`<span class="vac-badge">${vacLabel.split(' ')[0]}</span>`:''}
+    </div>`;
+
+    const roulCell=`<div class="cell"><span class="rb rb-${r}">${r}</span></div>`;
+
+    // Disponibilité Nicolas selon son quart
+    // Nounou avant école : disponible si Nicolas est en quart N (dors la journée après nuit)
+    // ou en A (part à 13h20) → il peut déposer. En M (finit 13h35) → peut pas amener.
+    // On laisse l'utilisateur choisir librement la nounou (c'est une nounou externe)
+    // Jours d'école : L=1 Ma=2 Me=3 Je=4 Ve=5
+    const isSchool = !isWE && !isFeri && !isVac;
+    const isLMJV   = isSchool && !isMe && (dow===1||dow===2||dow===4||dow===5);
+
+    let nouCell, matCell, midCell, soiCell, mercCell;
+
+    if(isWE||isFeri){
+      nouCell=matCell=midCell=soiCell=`<div class="cell"><span style="color:#ddd;font-size:.6rem;">—</span></div>`;
+      mercCell=`<div class="cell"><span style="color:#ddd;font-size:.6rem;">—</span></div>`;
+
+    } else if(isMe){
+      // MERCREDI
+      const nv=s.nou?`<span class="btn on-nou">✓ Nounou</span>`:`<span class="btn off">Nounou?</span>`;
+      nouCell=`<div class="cell" onclick="tog('${k}','nou')">${nv}</div>`;
+      matCell=`<div class="cell"><span style="font-size:.6rem;color:#ccc;">—</span></div>`;
+      midCell=`<div class="cell"><span style="font-size:.6rem;color:#ccc;">—</span></div>`;
+      soiCell=`<div class="cell"><span style="font-size:.6rem;color:#ccc;">—</span></div>`;
+      const mev  = s.mercE ?`<span class="btn ${mCls}" style="font-size:.6rem;">🗓 Entier</span>`       :`<span class="btn off" style="font-size:.6rem;">Entier?</span>`;
+      const mpmv = s.mercPM?`<span class="btn ${mCls}" style="font-size:.6rem;">🌅 Matin+repas</span>`  :`<span class="btn off" style="font-size:.6rem;">Mat+repas?</span>`;
+      const mamv = s.mercAM?`<span class="btn ${mCls}" style="font-size:.6rem;">🕐 Après-midi+repas</span>`:`<span class="btn off" style="font-size:.6rem;">AM+repas?</span>`;
+      const isGrandesVacs = (curM===6||curM===7);
+      const alshLabel = isGrandesVacs ? 'Gdes vacs?' : 'ALSH?';
+      const alv  = s.alsh  ?`<span class="btn on-alsh" style="font-size:.6rem;">${ALSH_LBL[s.alsh]}</span>`:(isGrandesVacs?`<span class="btn off" style="font-size:.6rem;">${alshLabel}</span>`:`<span class="btn off" style="font-size:.6rem;">ALSH?</span>`);
+      mercCell=`<div class="cell" style="flex-direction:column;gap:3px;">
+        <div onclick="tog('${k}','mercE')">${mev}</div>
+        <div onclick="tog('${k}','mercPM')">${mpmv}</div>
+        <div onclick="tog('${k}','mercAM')">${mamv}</div>
+        <div onclick="cycAlsh('${k}')">${alv}</div>
+      </div>`;
+
+    } else {
+      // LUNDI MARDI JEUDI VENDREDI (+ jeudi)
+      const nv=s.nou?`<span class="btn on-nou">✓ Nounou</span>`:`<span class="btn off">Nounou?</span>`;
+      nouCell=`<div class="cell" onclick="tog('${k}','nou')">${nv}</div>`;
+
+      const mv=s.mat?`<span class="btn ${pCls}">✓ Matin</span>`:`<span class="btn off">Matin?</span>`;
+      matCell=isLMJV?`<div class="cell" onclick="tog('${k}','mat')">${mv}</div>`:`<div class="cell"><span style="color:#ddd;font-size:.6rem;">—</span></div>`;
+
+      const midv=s.mid?`<span class="btn ${pCls}">✓ Midi</span>`:`<span class="btn off">Midi?</span>`;
+      midCell=isLMJV?`<div class="cell" onclick="tog('${k}','mid')">${midv}</div>`:`<div class="cell"><span style="color:#ddd;font-size:.6rem;">—</span></div>`;
+
+      const sv=s.soi?`<span class="btn ${pCls}">✓ Soir</span>`:`<span class="btn off">Soir?</span>`;
+      soiCell=`<div class="cell" onclick="tog('${k}','soi')">${sv}</div>`;
+
+      mercCell=`<div class="cell"><span style="color:#eee;font-size:.6rem;">—</span></div>`;
+    }
+
+    const noteCell=`<div class="cell note-cell"><input class="note-inp" type="text" value="${(s.note||'').replace(/"/g,'&quot;')}" placeholder="note…" oninput="setNote('${k}',this.value)"></div>`;
+    html+=`<div class="${rowCls}">${wkCell}${dateCell}${roulCell}${nouCell}${matCell}${midCell}${soiCell}${mercCell}${noteCell}</div>`;
+  }
+  document.getElementById(`cal-${enfant}`).innerHTML=html;
+  recalc(enfant);
+}
+
+// ═══════════ NOTE ═══════════
+function setNote(k,v){const s=gs(k);s.note=v;autosave();}
+
+// ═══════════ DUPLIQUER ═══════════
+function dupliquerMois(){
+  const src = curChild === 'lola' ? 'lola' : 'thea';
+  const dst = curChild === 'lola' ? 'thea' : 'lola';
+  const nb = dim(curY, curM);
+  let count = 0;
+  for(let d=1;d<=nb;d++){
+    const ks = sk(curY,curM,d,src);
+    const kd = sk(curY,curM,d,dst);
+    const ss = STATE[ks];
+    if(ss){
+      const {note:_n, ...rest} = ss; STATE[kd] = Object.assign({}, rest, {note:''});
+      count++;
+    } else {
+      // reset destination si source vide
+      delete STATE[kd];
+    }
+  }
+  // Feedback visuel
+  const btn = document.getElementById('dup-btn');
+  const lbl = document.getElementById('dup-label');
+  btn.style.background = '#d1fae5';
+  btn.style.borderColor = '#34d399';
+  btn.style.color = '#065f46';
+  lbl.textContent = '✓ Copié !';
+  setTimeout(()=>{
+    btn.style.background='';btn.style.borderColor='';btn.style.color='';
+    updateDupLabel();
+  }, 1800);
+}
+
+function dupliquerNotes(){
+  const src = curChild==='lola'?'lola':'thea';
+  const dst = curChild==='lola'?'thea':'lola';
+  const nb=dim(curY,curM);
+  for(let d=1;d<=nb;d++){
+    const ks=sk(curY,curM,d,src);
+    const kd=sk(curY,curM,d,dst);
+    const ss=STATE[ks];
+    const sd=gs(kd);
+    sd.note = ss ? (ss.note||'') : '';
+  }
+  autosave();
+  const btn=document.getElementById('dup-notes-btn');
+  const lbl=document.getElementById('dup-notes-label');
+  btn.style.background='#d1fae5';btn.style.borderColor='#34d399';btn.style.color='#065f46';
+  lbl.textContent='✓ Notes copiées !';
+  setTimeout(()=>{
+    btn.style.background='';btn.style.borderColor='';btn.style.color='';
+    updateDupLabel();
+  },1800);
+}
+
+function updateDupLabel(){
+  const lbl=document.getElementById('dup-label');
+  const nlbl=document.getElementById('dup-notes-label');
+  if(!lbl) return;
+  const btn=document.getElementById('btn-dup');
+  if(curChild==='recap'){ btn.parentElement.style.display='none'; return; }
+  btn.parentElement.style.display='flex';
+  const dest=curChild==='lola'?'🌸 Théa':'🎀 Lola';
+  lbl.textContent=`Copier vers ${dest}`;
+  if(nlbl) nlbl.textContent=`Copier notes vers ${dest}`;
+}
+
+// ═══════════ INTERACTIONS ═══════════
+function tog(k,f){
+  // Logique exclusive : mercE et mercPM ne peuvent pas être actifs en même temps
+  const s=gs(k);
+  if(f==='mercE'&&!s.mercE){s.mercPM=false;s.mercAM=false;}
+  if(f==='mercPM'&&!s.mercPM){s.mercE=false;s.mercAM=false;}
+  if(f==='mercAM'&&!s.mercAM){s.mercE=false;s.mercPM=false;}
+  s[f]=!s[f];
+  renderCal(curChild);
+  autosave();
+}
+function cycAlsh(k){
+  const s=gs(k);
+  // 'S' (Grandes vacances) = uniquement juillet (6) et août (7)
+  const isGrandesVacs = (curM===6 || curM===7);
+  const seq = isGrandesVacs ? ALSH_SEQ : ALSH_SEQ.filter(x=>x!=='S');
+  const i=seq.indexOf(s.alsh);
+  // Si valeur courante n'est pas dans la séquence filtrée, repartir de 0
+  s.alsh=seq[(i===-1?0:(i+1))%seq.length];
+  renderCal(curChild);
+  autosave();
+}
+
+// ═══════════ CALCUL ═══════════
+const ALSH_IDS={0:0,2:'t-al2',3:'t-al3',4:'t-al4',5:'t-al5','S':'t-als'};
+function T(id){return parseFloat(document.getElementById(id)?.value)||0;}
+function fmt(n){return n.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';}
+function fmtL(n,t){return `${n} × ${t.toFixed(2)}€ = <b>${fmt(n*t)}</b>`;}
+
+function computeMonth(enfant,y,m){
+  const nb=dim(y,m);
+  let nou=0,mat=0,mid=0,soi=0,me=0,mpm=0,mam=0,alshT=0;
+  for(let d=1;d<=nb;d++){
+    const s=STATE[sk(y,m,d,enfant)];
+    if(!s)continue;
+    if(s.nou)nou++;
+    if(s.mat)mat++;
+    if(s.mid)mid++;
+    if(s.soi)soi++;
+    if(s.mercE)me++;
+    if(s.mercPM)mpm++;
+    if(s.mercAM)mam++;
+    if(s.alsh){const tid=ALSH_IDS[s.alsh];if(tid)alshT+=T(tid);}
+  }
+  const total=nou*T('t-nou')+mat*T('t-mat')+mid*T('t-mid')+soi*T('t-soi')+me*T('t-me')+mpm*T('t-mpm')+mam*T('t-mam')+alshT;
+  return {nou,mat,mid,soi,me,mpm,mam,alshT,total};
+}
+
+function recalc(enfant){
+  const r=computeMonth(enfant,curY,curM);
+  const cesu=parseFloat(document.getElementById(`${enfant}-cesu`)?.value)||0;
+  const reste=Math.max(0,r.total-cesu);
+  document.getElementById(`${enfant}-total`).textContent=fmt(r.total);
+  document.getElementById(`${enfant}-reste`).textContent=fmt(reste);
+
+  const parts=[];
+  if(r.nou>0)parts.push(`${r.nou} nounou`);
+  if(r.mat+r.mid+r.soi>0)parts.push(`péri`);
+  if(r.me+r.mpm+r.mam>0)parts.push(`mercredi`);
+  if(r.alshT>0)parts.push(`ALSH`);
+  document.getElementById(`${enfant}-sub`).textContent=parts.length?parts.join(' · '):'Aucune garde sélectionnée';
+
+  const p=enfant==='lola'?'lola':'thea';
+  document.getElementById(`d-${p}-nou`).innerHTML=fmtL(r.nou,T('t-nou'));
+  document.getElementById(`d-${p}-mat`).innerHTML=fmtL(r.mat,T('t-mat'));
+  document.getElementById(`d-${p}-mid`).innerHTML=fmtL(r.mid,T('t-mid'));
+  document.getElementById(`d-${p}-soi`).innerHTML=fmtL(r.soi,T('t-soi'));
+  document.getElementById(`d-${p}-me`).innerHTML=fmtL(r.me,T('t-me'));
+  document.getElementById(`d-${p}-mpm`).innerHTML=fmtL(r.mpm,T('t-mpm'));
+  document.getElementById(`d-${p}-mam`).innerHTML=fmtL(r.mam,T('t-mam'));
+  document.getElementById(`d-${p}-al`).innerHTML=r.alshT>0?`<b>${fmt(r.alshT)}</b>`:'—';
+}
+function recalcAll(){recalc('lola');recalc('thea');}
+
+// ═══════════ RECAP ANNUEL ═══════════
+// Génère tous les mois de Sept 2025 jusqu'à la fin de l'année scolaire courante
+// + 12 mois futurs pour le prévisionnel
+function getAnneeMois(){
+  const liste=[];
+  // Début : juin 2026
+  let y=2026, m=5;
+  // Fin : 18 mois dans le futur depuis aujourd'hui
+  const now=new Date();
+  const endY=now.getFullYear()+(now.getMonth()+18>11?1:0);
+  const endM=(now.getMonth()+18)%12;
+  while(y<endY||(y===endY&&m<=endM)){
+    liste.push([y,m]);
+    m++; if(m>11){m=0;y++;}
+  }
+  return liste;
+}
+const ANNEE_MOIS=getAnneeMois();
+
+function switchRecapTab(tab){
+  document.querySelectorAll('.recap-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.recap-section').forEach(s=>s.classList.remove('active'));
+  document.querySelector(`.recap-tab[onclick*="${tab}"]`).classList.add('active');
+  document.getElementById(`recap-${tab}`).classList.add('active');
+  renderRecap();
+}
+
+function renderRecap(){
+  renderRecapAnnuel();
+  renderRecapMensuel();
+}
+
+function renderRecapAnnuel(){
+  let lolaAn=0,theaAn=0;
+  let lolaH='',theaH='',globH='';
+  const now=new Date();
+  const nowY=now.getFullYear(), nowM=now.getMonth();
+  for(const [y,m] of ANNEE_MOIS){
+    const rl=computeMonth('lola',y,m);
+    const rt=computeMonth('thea',y,m);
+    const lb=`${MOIS[m].substring(0,4)}. ${y}`;
+    const isPast  = y<nowY||(y===nowY&&m<nowM);
+    const isCur   = y===nowY&&m===nowM;
+    const isFut   = y>nowY||(y===nowY&&m>nowM);
+    const badge   = isCur  ? '<span style="background:#fef3c7;color:#92400e;border-radius:4px;padding:1px 5px;font-size:.6rem;font-weight:800;margin-left:4px;">EN COURS</span>'
+                  : isFut  ? '<span style="background:#ede9fe;color:#5b21b6;border-radius:4px;padding:1px 5px;font-size:.6rem;font-weight:800;margin-left:4px;">PRÉVU</span>'
+                  : '';
+    const opacity = isFut&&rl.total===0&&rt.total===0 ? 'opacity:.4;' : '';
+    lolaAn+=rl.total; theaAn+=rt.total;
+    const tot=rl.total+rt.total;
+    const onclick=`switchRecapTab('mensuel');setRecapMonth(${y},${m})`;
+    const style=`cursor:pointer;${opacity}`;
+    const showL = rl.total>0||isCur||isFut;
+    const showT = rt.total>0||isCur||isFut;
+    const showG = tot>0||isCur||isFut;
+    const lVal = rl.total>0 ? `<span class="mv cell-lola">${fmt(rl.total)}</span>` : `<span style="color:#ccc;font-size:.72rem;">${isFut?'—':fmt(0)}</span>`;
+    const tVal = rt.total>0 ? `<span class="mv cell-thea">${fmt(rt.total)}</span>` : `<span style="color:#ccc;font-size:.72rem;">${isFut?'—':fmt(0)}</span>`;
+    const gVal = tot>0      ? `<span class="mv cell-glob">${fmt(tot)}</span>`      : `<span style="color:#ccc;font-size:.72rem;">${isFut?'—':fmt(0)}</span>`;
+    if(showL) lolaH+=`<div class="rm" style="${style}" onclick="${onclick}" title="Voir le détail"><span class="mn">${lb}${badge}</span>${lVal}</div>`;
+    if(showT) theaH+=`<div class="rm" style="${style}" onclick="${onclick}" title="Voir le détail"><span class="mn">${lb}${badge}</span>${tVal}</div>`;
+    if(showG) globH+=`<div class="rm" style="${style}" onclick="${onclick}" title="Voir le détail"><span class="mn">${lb}${badge}</span>${gVal}</div>`;
+  }
+  document.getElementById('r-lola-tot').textContent=fmt(lolaAn);
+  document.getElementById('r-thea-tot').textContent=fmt(theaAn);
+  document.getElementById('r-grand-tot').textContent=fmt(lolaAn+theaAn);
+  document.getElementById('r-lola-months').innerHTML=lolaH||'<div class="empty-recap">Aucune donnée saisie</div>';
+  document.getElementById('r-thea-months').innerHTML=theaH||'<div class="empty-recap">Aucune donnée saisie</div>';
+  document.getElementById('r-global-months').innerHTML=globH||'<div class="empty-recap">Aucune donnée saisie</div>';
+}
+
+function setRecapMonth(y,m){
+  const sel=document.getElementById('recap-month-sel');
+  if(sel) sel.value=`${y}-${m}`;
+  renderRecapMensuel();
+}
+
+function initRecapMonthSel(){
+  const sel=document.getElementById('recap-month-sel');
+  if(!sel) return;
+  sel.innerHTML='';
+  const now=new Date();
+  const nowY=now.getFullYear(), nowM=now.getMonth();
+  for(const [y,m] of ANNEE_MOIS){
+    const opt=document.createElement('option');
+    opt.value=`${y}-${m}`;
+    const isCur=y===nowY&&m===nowM;
+    const isFut=y>nowY||(y===nowY&&m>nowM);
+    const tag=isCur?' ◀ EN COURS':isFut?' (prévu)':'';
+    opt.textContent=`${MOIS[m]} ${y}${tag}`;
+    if(y===curY&&m===curM) opt.selected=true;
+    sel.appendChild(opt);
+  }
+}
+
+function renderRecapMensuel(){
+  const sel=document.getElementById('recap-month-sel');
+  if(!sel) return;
+  if(!sel.options.length) initRecapMonthSel();
+  const [sy,sm]=sel.value.split('-').map(Number);
+  const y=isNaN(sy)?curY:sy, m=isNaN(sm)?curM:sm;
+
+  const rl=computeMonth('lola',y,m);
+  const rt=computeMonth('thea',y,m);
+
+  const lignes=[
+    {lbl:'🏠 Nounou matin',    lv:rl.nou,  tv:rt.nou,  tid:'t-nou'},
+    {lbl:'☀️ Matin péri',      lv:rl.mat,  tv:rt.mat,  tid:'t-mat'},
+    {lbl:'🍽 Midi',             lv:rl.mid,  tv:rt.mid,  tid:'t-mid'},
+    {lbl:'🌙 Soir',             lv:rl.soi,  tv:rt.soi,  tid:'t-soi'},
+    {lbl:'📅 Merc entier',      lv:rl.me,   tv:rt.me,   tid:'t-me'},
+    {lbl:'📅 Merc matin+repas', lv:rl.mpm,  tv:rt.mpm,  tid:'t-mpm'},
+    {lbl:'📅 Merc AM+repas',    lv:rl.mam,  tv:rt.mam,  tid:'t-mam'},
+    {lbl:'🏕 ALSH',             lv:rl.alshT>0?1:0, tv:rt.alshT>0?1:0, tid:null, lMont:rl.alshT, tMont:rt.alshT},
+  ];
+
+  let rows='';
+  for(const lg of lignes){
+    const tarif = lg.tid ? T(lg.tid) : 0;
+    const lMont = lg.lMont !== undefined ? lg.lMont : lg.lv * tarif;
+    const tMont = lg.tMont !== undefined ? lg.tMont : lg.tv * tarif;
+    const gMont = lMont + tMont;
+    const lc = lMont>0 ? `<span class="cell-lola">${fmt(lMont)}</span><br><span style="color:#ccc;font-size:.65rem;">${lg.lv > 0 && lg.tid ? lg.lv+'×' : ''}</span>` : `<span class="cell-zero">—</span>`;
+    const tc = tMont>0 ? `<span class="cell-thea">${fmt(tMont)}</span><br><span style="color:#ccc;font-size:.65rem;">${lg.tv > 0 && lg.tid ? lg.tv+'×' : ''}</span>` : `<span class="cell-zero">—</span>`;
+    const gc = gMont>0 ? `<span class="cell-glob">${fmt(gMont)}</span>` : `<span class="cell-zero">—</span>`;
+    rows+=`<tr><td class="left">${lg.lbl}</td><td>${lc}</td><td>${tc}</td><td>${gc}</td></tr>`;
+  }
+
+  const lTot=rl.total, tTot=rt.total, gTot=lTot+tTot;
+  const lCesu=parseFloat(document.getElementById('lola-cesu')?.value)||0;
+  const tCesu=parseFloat(document.getElementById('thea-cesu')?.value)||0;
+
+  const now2=new Date();
+  const isCurM=y===now2.getFullYear()&&m===now2.getMonth();
+  const isFutM=y>now2.getFullYear()||(y===now2.getFullYear()&&m>now2.getMonth());
+  const mBadge=isCurM?'<span style="background:#fef3c7;color:#92400e;border-radius:5px;padding:2px 8px;font-size:.7rem;font-weight:800;margin-left:8px;">EN COURS</span>'
+               :isFutM?'<span style="background:#ede9fe;color:#5b21b6;border-radius:5px;padding:2px 8px;font-size:.7rem;font-weight:800;margin-left:8px;">PRÉVISIONNEL</span>'
+               :'<span style="background:#f3f4f6;color:#6b7280;border-radius:5px;padding:2px 8px;font-size:.7rem;font-weight:800;margin-left:8px;">PASSÉ</span>';
+  const html=`
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+      <span style="font-size:.95rem;font-weight:800;color:#1e2235;">${MOIS[m]} ${y}</span>${mBadge}
+    </div>
+    <table class="mensuel-table">
+      <thead>
+        <tr>
+          <th class="left" style="min-width:160px;">Prestation</th>
+          <th>🎀 Lola</th>
+          <th>🌸 Théa</th>
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows}
+        <tr class="total-row">
+          <td class="left">TOTAL BRUT</td>
+          <td class="lola-col">${fmt(lTot)}</td>
+          <td class="thea-col">${fmt(tTot)}</td>
+          <td class="glob-col">${fmt(gTot)}</td>
+        </tr>
+        <tr style="background:#fafafa;">
+          <td class="left" style="color:#888;">− CESU / aide</td>
+          <td style="color:#888;">${lCesu>0?'− '+fmt(lCesu):'—'}</td>
+          <td style="color:#888;">${tCesu>0?'− '+fmt(tCesu):'—'}</td>
+          <td style="color:#888;">${(lCesu+tCesu)>0?'− '+fmt(lCesu+tCesu):'—'}</td>
+        </tr>
+        <tr class="total-row">
+          <td class="left">RESTE À PAYER</td>
+          <td class="lola-col">${fmt(Math.max(0,lTot-lCesu))}</td>
+          <td class="thea-col">${fmt(Math.max(0,tTot-tCesu))}</td>
+          <td class="glob-col">${fmt(Math.max(0,gTot-lCesu-tCesu))}</td>
+        </tr>
+      </tbody>
+    </table>`;
+
+  document.getElementById('mensuel-content').innerHTML=html;
+}
+
+// ═══════════ PERSISTANCE ═══════════
+const LS_KEY = 'planning_periscolaire_v1';
+
+function saveToLocal(){
+  const data = {STATE, curY, curM, tarifs: getTarifs()};
+  localStorage.setItem(LS_KEY, JSON.stringify(data));
+  setStatus('✅ Sauvegardé à ' + new Date().toLocaleTimeString('fr-FR'), 'ok');
+}
+
+function loadFromLocal(){
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if(!raw) return false;
+    const data = JSON.parse(raw);
+    if(data.STATE) Object.assign(STATE, data.STATE);
+    if(data.tarifs) setTarifs(data.tarifs);
+    return true;
+  } catch(e){ return false; }
+}
+
+function exportJSON(){
+  saveToLocal();
+  const data = {STATE, curY, curM, tarifs: getTarifs(), exportedAt: new Date().toISOString()};
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  const d = new Date();
+  a.download = `planning_lola_thea_${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}.json`;
+  a.click();
+  setStatus('📤 Fichier exporté', 'ok');
+}
+
+function importJSON(evt){
+  const file = evt.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if(data.STATE){
+        Object.keys(STATE).forEach(k=>delete STATE[k]);
+        Object.assign(STATE, data.STATE);
+      }
+      if(data.tarifs) setTarifs(data.tarifs);
+      if(data.curY) curY = data.curY;
+      if(data.curM !== undefined) curM = data.curM;
+      document.getElementById('monthLabel').textContent = MOIS[curM]+' '+curY;
+      if(curChild!=='recap') renderCal(curChild);
+      saveToLocal();
+      setStatus('📂 Fichier chargé : '+ file.name, 'ok');
+    } catch(err){
+      setStatus('⚠️ Fichier invalide', 'warn');
+    }
+    evt.target.value='';
+  };
+  reader.readAsText(file);
+}
+
+function clearMois(){
+  const moisLabel = MOIS[curM] + ' ' + curY;
+  if(!confirm(`Effacer toutes les données de ${moisLabel} pour Lola ET Théa ?`)) return;
+  const nb = dim(curY, curM);
+  for(let d=1;d<=nb;d++){
+    ['lola','thea'].forEach(enfant=>{
+      const k = sk(curY,curM,d,enfant);
+      delete STATE[k];
+    });
+  }
+  if(curChild!=='recap') renderCal(curChild);
+  autosave();
+  setStatus('🗑 ' + moisLabel + ' effacé', 'warn');
+}
+
+function clearAll(){
+  if(!confirm('Effacer TOUTES les données de TOUS les mois (Lola + Théa) ? Cette action est irréversible.')) return;
+  Object.keys(STATE).forEach(k=>delete STATE[k]);
+  localStorage.removeItem(LS_KEY);
+  if(curChild!=='recap') renderCal(curChild);
+  setStatus('🗑 Données effacées', 'warn');
+}
+
+function setStatus(msg, type=''){
+  const el = document.getElementById('save-status');
+  if(!el) return;
+  el.textContent = msg;
+  el.className = 'save-status' + (type?' '+type:'');
+}
+
+function getTarifs(){
+  const ids=['t-nou','t-mat','t-mid','t-soi','t-me','t-mpm','t-mam','t-al2','t-al3','t-al4','t-al5','t-als'];
+  const obj={};
+  ids.forEach(id=>{ const el=document.getElementById(id); if(el) obj[id]=el.value; });
+  // CESU
+  ['lola-cesu','thea-cesu'].forEach(id=>{ const el=document.getElementById(id); if(el) obj[id]=el.value; });
+  return obj;
+}
+
+function setTarifs(tarifs){
+  Object.entries(tarifs).forEach(([id,val])=>{
+    const el=document.getElementById(id);
+    if(el) el.value=val;
+  });
+}
+
+// Autosave : toutes les interactions déclenchent un save silencieux
+function autosave(){
+  const data = {STATE, curY, curM, tarifs: getTarifs()};
+  localStorage.setItem(LS_KEY, JSON.stringify(data));
+  setStatus('💾 Sauvegardé automatiquement à ' + new Date().toLocaleTimeString('fr-FR'), 'ok');
+}
+
+// ═══════════ INIT ═══════════
+// Charger données sauvegardées
+const loaded = loadFromLocal();
+document.getElementById('monthLabel').textContent=`${MOIS[curM]} ${curY}`;
+renderCal('lola');
+updateDupLabel();
+initRecapMonthSel();
+if(loaded){
+  setStatus('✅ Données restaurées depuis la dernière session', 'ok');
+} else {
+  setStatus('💡 Aucune sauvegarde — vos saisies seront auto-sauvegardées', '');
+}
+</script>
+</body>
+</html>
