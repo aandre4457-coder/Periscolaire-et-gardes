@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+!DOCTYPE html>
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
@@ -221,7 +221,7 @@ html{height:-webkit-fill-available;}
 
 <div class="save-bar">
   <span class="save-status" id="save-status">💾 Non sauvegardé</span>
-  <button class="sbtn sbtn-save" onclick="saveToLocal_manual()">💾 Sauvegarder</button>
+  <button class="sbtn sbtn-save" onclick="saveToLocal()">💾 Sauvegarder</button>
   <button class="sbtn sbtn-export" onclick="exportJSON()">📤 Exporter fichier</button>
   <label class="sbtn sbtn-import" style="cursor:pointer;">
     📂 Importer fichier
@@ -900,61 +900,15 @@ function renderRecapMensuel(){
   document.getElementById('mensuel-content').innerHTML=html;
 }
 
-// ═══════════════════════════════════════════════════
-// FIREBASE — Synchronisation temps réel
-// ═══════════════════════════════════════════════════
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getFirestore, doc, setDoc, onSnapshot, getDoc }
-  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+// ═══════════ PERSISTANCE ═══════════
+const LS_KEY = 'planning_periscolaire_v1';
 
-const firebaseConfig = {
-  apiKey: "AIzaSyB7PjA_6wmV5uyAqdx3S0eDfXd4twPCid4",
-  authDomain: "planning-periscolaire.firebaseapp.com",
-  projectId: "planning-periscolaire",
-  storageBucket: "planning-periscolaire.firebasestorage.app",
-  messagingSenderId: "247099221828",
-  appId: "1:247099221828:web:92796a38866349b1ff1911"
-};
-
-const _app  = initializeApp(firebaseConfig);
-const _db   = getFirestore(_app);
-const DOC_STATE  = doc(_db, 'planning', 'state');
-const DOC_TARIFS = doc(_db, 'planning', 'tarifs');
-const LS_KEY = 'planning_periscolaire_v1'; // cache local hors ligne
-
-let _syncPaused = false;   // évite les boucles lors de l'écriture locale
-let _saveTimer  = null;    // debounce pour ne pas spammer Firebase
-
-// ── Helpers ──────────────────────────────────────
-function setStatus(msg, type=''){
-  const el = document.getElementById('save-status');
-  if(!el) return;
-  el.textContent = msg;
-  el.className = 'save-status' + (type?' '+type:'');
-}
-
-function getTarifs(){
-  const ids=['t-nou','t-mat','t-mid','t-soi','t-me','t-mpm','t-mam','t-al2','t-al3','t-al4','t-al5','t-als'];
-  const obj={};
-  ids.forEach(id=>{ const el=document.getElementById(id); if(el) obj[id]=el.value; });
-  ['lola-cesu','thea-cesu'].forEach(id=>{ const el=document.getElementById(id); if(el) obj[id]=el.value; });
-  return obj;
-}
-
-function setTarifs(tarifs){
-  Object.entries(tarifs).forEach(([id,val])=>{
-    const el=document.getElementById(id);
-    if(el) el.value=val;
-  });
-}
-
-// ── Sauvegarder dans localStorage (cache hors ligne) ──
 function saveToLocal(){
-  const data = {STATE, tarifs: getTarifs()};
+  const data = {STATE, curY, curM, tarifs: getTarifs()};
   localStorage.setItem(LS_KEY, JSON.stringify(data));
+  setStatus('✅ Sauvegardé à ' + new Date().toLocaleTimeString('fr-FR'), 'ok');
 }
 
-// ── Charger depuis localStorage (démarrage hors ligne) ──
 function loadFromLocal(){
   try {
     const raw = localStorage.getItem(LS_KEY);
@@ -966,60 +920,9 @@ function loadFromLocal(){
   } catch(e){ return false; }
 }
 
-// ── Pousser vers Firebase (avec debounce 800ms) ──
-function pushToFirebase(){
-  clearTimeout(_saveTimer);
-  _saveTimer = setTimeout(async () => {
-    try {
-      setStatus('🔄 Synchronisation…', '');
-      await setDoc(DOC_STATE,  { data: JSON.stringify(STATE),       updatedAt: Date.now() });
-      await setDoc(DOC_TARIFS, { data: JSON.stringify(getTarifs()), updatedAt: Date.now() });
-      saveToLocal();
-      setStatus('☁️ Synchronisé à ' + new Date().toLocaleTimeString('fr-FR'), 'ok');
-    } catch(e){
-      setStatus('⚠️ Hors ligne — sauvegardé localement', 'warn');
-      saveToLocal();
-    }
-  }, 800);
-}
-
-// ── Autosave (remplace l'ancienne fonction) ──
-function autosave(){ pushToFirebase(); }
-
-// ── Écoute temps réel Firebase → met à jour l'UI si c'est l'autre utilisateur ──
-function startRealtimeSync(){
-  onSnapshot(DOC_STATE, snap => {
-    if(_syncPaused || !snap.exists()) return;
-    try {
-      const remote = JSON.parse(snap.data().data);
-      // Fusionner sans écraser les clés locales récentes
-      Object.assign(STATE, remote);
-      saveToLocal();
-      if(curChild!=='recap') renderCal(curChild);
-      recalcAll();
-      setStatus('🔄 Mis à jour par l'autre appareil', 'ok');
-    } catch(e){}
-  });
-
-  onSnapshot(DOC_TARIFS, snap => {
-    if(_syncPaused || !snap.exists()) return;
-    try {
-      const t = JSON.parse(snap.data().data);
-      setTarifs(t);
-      recalcAll();
-    } catch(e){}
-  });
-}
-
-// ── Sauvegarde manuelle ──
-function saveToLocal_manual(){
-  pushToFirebase();
-  setStatus('☁️ Synchronisation lancée…', 'ok');
-}
-
-// ── Export JSON ──
 function exportJSON(){
-  const data = {STATE, tarifs: getTarifs(), exportedAt: new Date().toISOString()};
+  saveToLocal();
+  const data = {STATE, curY, curM, tarifs: getTarifs(), exportedAt: new Date().toISOString()};
   const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -1029,7 +932,6 @@ function exportJSON(){
   setStatus('📤 Fichier exporté', 'ok');
 }
 
-// ── Import JSON ──
 function importJSON(evt){
   const file = evt.target.files[0];
   if(!file) return;
@@ -1042,42 +944,77 @@ function importJSON(evt){
         Object.assign(STATE, data.STATE);
       }
       if(data.tarifs) setTarifs(data.tarifs);
+      if(data.curY) curY = data.curY;
+      if(data.curM !== undefined) curM = data.curM;
+      document.getElementById('monthLabel').textContent = MOIS[curM]+' '+curY;
       if(curChild!=='recap') renderCal(curChild);
-      autosave();
-      setStatus('📂 Importé : '+ file.name, 'ok');
-    } catch(err){ setStatus('⚠️ Fichier invalide', 'warn'); }
+      saveToLocal();
+      setStatus('📂 Fichier chargé : '+ file.name, 'ok');
+    } catch(err){
+      setStatus('⚠️ Fichier invalide', 'warn');
+    }
     evt.target.value='';
   };
   reader.readAsText(file);
 }
 
-// ── Effacer le mois ──
 function clearMois(){
   const moisLabel = MOIS[curM] + ' ' + curY;
   if(!confirm(`Effacer toutes les données de ${moisLabel} pour Lola ET Théa ?`)) return;
   const nb = dim(curY, curM);
   for(let d=1;d<=nb;d++){
-    ['lola','thea'].forEach(enfant=>{ delete STATE[sk(curY,curM,d,enfant)]; });
+    ['lola','thea'].forEach(enfant=>{
+      const k = sk(curY,curM,d,enfant);
+      delete STATE[k];
+    });
   }
   if(curChild!=='recap') renderCal(curChild);
   autosave();
   setStatus('🗑 ' + moisLabel + ' effacé', 'warn');
 }
 
-// ── Effacer tout ──
 function clearAll(){
-  if(!confirm('Effacer TOUTES les données (Lola + Théa, tous les mois) ? Irréversible.')) return;
+  if(!confirm('Effacer TOUTES les données de TOUS les mois (Lola + Théa) ? Cette action est irréversible.')) return;
   Object.keys(STATE).forEach(k=>delete STATE[k]);
   localStorage.removeItem(LS_KEY);
   if(curChild!=='recap') renderCal(curChild);
-  autosave();
   setStatus('🗑 Données effacées', 'warn');
+}
+
+function setStatus(msg, type=''){
+  const el = document.getElementById('save-status');
+  if(!el) return;
+  el.textContent = msg;
+  el.className = 'save-status' + (type?' '+type:'');
+}
+
+function getTarifs(){
+  const ids=['t-nou','t-mat','t-mid','t-soi','t-me','t-mpm','t-mam','t-al2','t-al3','t-al4','t-al5','t-als'];
+  const obj={};
+  ids.forEach(id=>{ const el=document.getElementById(id); if(el) obj[id]=el.value; });
+  // CESU
+  ['lola-cesu','thea-cesu'].forEach(id=>{ const el=document.getElementById(id); if(el) obj[id]=el.value; });
+  return obj;
+}
+
+function setTarifs(tarifs){
+  Object.entries(tarifs).forEach(([id,val])=>{
+    const el=document.getElementById(id);
+    if(el) el.value=val;
+  });
+}
+
+// Autosave : toutes les interactions déclenchent un save silencieux
+function autosave(){
+  const data = {STATE, curY, curM, tarifs: getTarifs()};
+  localStorage.setItem(LS_KEY, JSON.stringify(data));
+  setStatus('💾 Sauvegardé automatiquement à ' + new Date().toLocaleTimeString('fr-FR'), 'ok');
 }
 
 // ═══════════ PWA SERVICE WORKER ═══════════
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js', {scope: '/Periscolaire-et-gardes/'})
+    navigator.serviceWorker.register('/sw.js')
       .then(reg => console.log('SW enregistré:', reg.scope))
       .catch(err => console.log('SW erreur:', err));
   });
@@ -1089,43 +1026,20 @@ const _childParam = _urlParams.get('child');
 if (_childParam === 'thea') { curChild = 'thea'; }
 
 // ═══════════ INIT ═══════════
-// 1. Charger le cache local d'abord (affichage immédiat)
-loadFromLocal();
+// Charger données sauvegardées
+const loaded = loadFromLocal();
 document.getElementById('monthLabel').textContent=`${MOIS[curM]} ${curY}`;
 initRecapMonthSel();
-const _startChild = (_childParam === 'thea') ? 'thea' : 'lola';
+// Ouvrir le bon onglet (shortcut ou défaut lola)
+const _startChild = (typeof _childParam !== 'undefined' && _childParam === 'thea') ? 'thea' : 'lola';
 switchTab(_startChild);
 updateDupLabel();
-setStatus('🔄 Connexion à Firebase…', '');
-
-// 2. Charger depuis Firebase puis démarrer la synchro temps réel
-getDoc(DOC_STATE).then(snap => {
-  if(snap.exists()){
-    try {
-      const remote = JSON.parse(snap.data().data);
-      Object.assign(STATE, remote);
-      saveToLocal();
-      if(curChild!=='recap') renderCal(curChild);
-      recalcAll();
-    } catch(e){}
-  }
-  return getDoc(DOC_TARIFS);
-}).then(snap => {
-  if(snap && snap.exists()){
-    try { setTarifs(JSON.parse(snap.data().data)); recalcAll(); } catch(e){}
-  }
-  setStatus('✅ Connecté — synchronisation active', 'ok');
-  startRealtimeSync();
-}).catch(() => {
-  setStatus('⚠️ Hors ligne — données locales chargées', 'warn');
-});
-// Exposer les fonctions au HTML (nécessaire avec type="module")
-Object.assign(window, {
-  switchTab, changeMonth, switchRecapTab, setRecapMonth,
-  tog, cycAlsh, setNote, dupliquerMois, dupliquerNotes, updateDupLabel,
-  recalc, recalcAll, saveToLocal_manual, exportJSON, importJSON,
-  clearMois, clearAll, renderRecap, initRecapMonthSel
-});
+initRecapMonthSel();
+if(loaded){
+  setStatus('✅ Données restaurées depuis la dernière session', 'ok');
+} else {
+  setStatus('💡 Aucune sauvegarde — vos saisies seront auto-sauvegardées', '');
+}
 </script>
 </body>
 </html>
