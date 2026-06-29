@@ -1126,14 +1126,7 @@ function autosave(){
   setStatus('💾 Sauvegardé automatiquement à ' + new Date().toLocaleTimeString('fr-FR'), 'ok');
 }
 
-// ═══════════ PWA SERVICE WORKER ═══════════
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
-      .then(reg => console.log('SW enregistré:', reg.scope))
-      .catch(err => console.log('SW erreur:', err));
-  });
-}
+// ═══════════ PWA SERVICE WORKER (actif uniquement sur GitHub Pages) ═══════════
 
 // Gestion des shortcuts (lola / thea)
 const _urlParams = new URLSearchParams(window.location.search);
