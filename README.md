@@ -1,1 +1,1 @@
-# P-riscolaire-et-gardes
+# Periscolaire-et-gardes
