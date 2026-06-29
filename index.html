@@ -277,7 +277,7 @@ html{height:-webkit-fill-available;}
         <div class="tc-sub" id="lola-sub">—</div>
         <div class="tc-cesu">
           <label>CESU / aide</label>
-          <input type="number" id="lola-cesu" placeholder="0" min="0" oninput="setCesu('lola',this.value)">€
+          <input type="number" id="lola-cesu" placeholder="0" min="0" oninput="recalc('lola');autosave()">€
         </div>
         <div class="tc-reste">
           <span class="rl">Reste à payer</span>
@@ -341,7 +341,7 @@ html{height:-webkit-fill-available;}
         <div class="tc-sub" id="thea-sub">—</div>
         <div class="tc-cesu">
           <label>CESU / aide</label>
-          <input type="number" id="thea-cesu" placeholder="0" min="0" oninput="setCesu('thea',this.value)">€
+          <input type="number" id="thea-cesu" placeholder="0" min="0" oninput="recalc('thea');autosave()">€
         </div>
         <div class="tc-reste">
           <span class="rl">Reste à payer</span>
@@ -427,7 +427,7 @@ html{height:-webkit-fill-available;}
   </div>
 </div>
 
-<script>
+<script type="module">
 // ═══════════════════════════════════════════
 // ROULEMENT EQUIPE A – T3/4 – CNPE Cattenom
 // ═══════════════════════════════════════════
@@ -450,7 +450,6 @@ const _now=new Date(); let curY=_now.getFullYear(), curM=_now.getMonth(), curChi
 // STATE : clé = "YYYY-MM-DD_enfant"
 // champs : nou(nounou), mat(matin péri), mid(midi), soi(soir), mercE(merc entier), mercPM(merc AM+repas), alsh(0/2/3/4/5/'S')
 const STATE={};
-const CESU_STATE={}; // clé: "YYYY-MM_enfant" → montant
 const ALSH_SEQ=[0,2,3,4,5,'S'];
 const ALSH_LBL={0:'ALSH?',2:'2j',3:'3j',4:'4j',5:'5j','S':'Gdes vacs'};
 
@@ -485,7 +484,6 @@ function switchTab(t){
     navBtns.forEach(b=>b.style.visibility='visible');
     ml.style.visibility='visible';
     renderCal(t);
-    loadCesuInputs();
   }
   updateDupLabel();
 }
@@ -586,25 +584,6 @@ function renderCal(enfant){
 
 // ═══════════ NOTE ═══════════
 function setNote(k,v){const s=gs(k);s.note=v;autosave();}
-
-// ═══════════ CESU PAR MOIS ═══════════
-function cesuKey(enfant){ return `${curY}-${String(curM+1).padStart(2,'0')}_${enfant}`; }
-function setCesu(enfant, val){
-  CESU_STATE[cesuKey(enfant)] = parseFloat(val)||0;
-  recalc(enfant);
-  autosave();
-}
-function getCesu(enfant){
-  return CESU_STATE[cesuKey(enfant)] || 0;
-}
-function loadCesuInputs(){
-  const lv = getCesu('lola');
-  const tv = getCesu('thea');
-  const li = document.getElementById('lola-cesu');
-  const ti = document.getElementById('thea-cesu');
-  if(li) li.value = lv > 0 ? lv : '';
-  if(ti) ti.value = tv > 0 ? tv : '';
-}
 
 // ═══════════ DUPLIQUER ═══════════
 function dupliquerMois(){
@@ -721,7 +700,7 @@ function computeMonth(enfant,y,m){
 
 function recalc(enfant){
   const r=computeMonth(enfant,curY,curM);
-  const cesu=getCesu(enfant);
+  const cesu=parseFloat(document.getElementById(`${enfant}-cesu`)?.value)||0;
   const reste=Math.max(0,r.total-cesu);
   document.getElementById(`${enfant}-total`).textContent=fmt(r.total);
   document.getElementById(`${enfant}-reste`).textContent=fmt(reste);
@@ -873,10 +852,8 @@ function renderRecapMensuel(){
   }
 
   const lTot=rl.total, tTot=rt.total, gTot=lTot+tTot;
-  const lCesuKey=`${y}-${String(m+1).padStart(2,'0')}_lola`;
-  const tCesuKey=`${y}-${String(m+1).padStart(2,'0')}_thea`;
-  const lCesu=CESU_STATE[lCesuKey]||0;
-  const tCesu=CESU_STATE[tCesuKey]||0;
+  const lCesu=parseFloat(document.getElementById('lola-cesu')?.value)||0;
+  const tCesu=parseFloat(document.getElementById('thea-cesu')?.value)||0;
 
   const now2=new Date();
   const isCurM=y===now2.getFullYear()&&m===now2.getMonth();
@@ -923,12 +900,28 @@ function renderRecapMensuel(){
   document.getElementById('mensuel-content').innerHTML=html;
 }
 
-// ═══════════ PERSISTANCE ═══════════
+// ═══════════ FIREBASE + PERSISTANCE ═══════════
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getFirestore, doc, setDoc, onSnapshot, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+const _fb = initializeApp({
+  apiKey: "AIzaSyB7PjA_6wmV5uyAqdx3S0eDfXd4twPCid4",
+  authDomain: "planning-periscolaire.firebaseapp.com",
+  projectId: "planning-periscolaire",
+  storageBucket: "planning-periscolaire.firebasestorage.app",
+  messagingSenderId: "247099221828",
+  appId: "1:247099221828:web:92796a38866349b1ff1911"
+});
+const _db = getFirestore(_fb);
+const _DOC = doc(_db, 'planning', 'state');
+let _saveTimer = null;
+
 const LS_KEY = 'planning_periscolaire_v1';
 
+function _getPayload(){ return {STATE, CESU_STATE, tarifs: getTarifs()}; }
+
 function saveToLocal(){
-  const data = {STATE, curY, curM, tarifs: getTarifs()};
-  localStorage.setItem(LS_KEY, JSON.stringify(data));
+  localStorage.setItem(LS_KEY, JSON.stringify(_getPayload()));
   setStatus('✅ Sauvegardé à ' + new Date().toLocaleTimeString('fr-FR'), 'ok');
 }
 
@@ -942,6 +935,12 @@ function loadFromLocal(){
     if(data.tarifs) setTarifs(data.tarifs);
     return true;
   } catch(e){ return false; }
+}
+
+function _applyRemote(data){
+  if(data.STATE){ Object.keys(STATE).forEach(k=>delete STATE[k]); Object.assign(STATE, data.STATE); }
+  if(data.CESU_STATE){ Object.keys(CESU_STATE).forEach(k=>delete CESU_STATE[k]); Object.assign(CESU_STATE, data.CESU_STATE); }
+  if(data.tarifs) setTarifs(data.tarifs);
 }
 
 function exportJSON(){
@@ -966,10 +965,6 @@ function importJSON(evt){
       if(data.STATE){
         Object.keys(STATE).forEach(k=>delete STATE[k]);
         Object.assign(STATE, data.STATE);
-      }
-      if(data.CESU_STATE){
-        Object.keys(CESU_STATE).forEach(k=>delete CESU_STATE[k]);
-        Object.assign(CESU_STATE, data.CESU_STATE);
       }
       if(data.tarifs) setTarifs(data.tarifs);
       if(data.curY) curY = data.curY;
@@ -1020,6 +1015,8 @@ function getTarifs(){
   const ids=['t-nou','t-mat','t-mid','t-soi','t-me','t-mpm','t-mam','t-al2','t-al3','t-al4','t-al5','t-als'];
   const obj={};
   ids.forEach(id=>{ const el=document.getElementById(id); if(el) obj[id]=el.value; });
+  // CESU
+  ['lola-cesu','thea-cesu'].forEach(id=>{ const el=document.getElementById(id); if(el) obj[id]=el.value; });
   return obj;
 }
 
@@ -1030,11 +1027,18 @@ function setTarifs(tarifs){
   });
 }
 
-// Autosave : toutes les interactions déclenchent un save silencieux
+// Autosave : localStorage immédiat + Firebase avec debounce 800ms
 function autosave(){
-  const data = {STATE, curY, curM, tarifs: getTarifs()};
-  localStorage.setItem(LS_KEY, JSON.stringify(data));
-  setStatus('💾 Sauvegardé automatiquement à ' + new Date().toLocaleTimeString('fr-FR'), 'ok');
+  localStorage.setItem(LS_KEY, JSON.stringify(_getPayload()));
+  clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(async ()=>{
+    try{
+      await setDoc(_DOC, {data: JSON.stringify(_getPayload()), t: Date.now()});
+      setStatus('☁️ Synchronisé à ' + new Date().toLocaleTimeString('fr-FR'), 'ok');
+    } catch(e){
+      setStatus('⚠️ Hors ligne — sauvegardé localement', 'warn');
+    }
+  }, 800);
 }
 
 // ═══════════ PWA SERVICE WORKER ═══════════
@@ -1059,14 +1063,144 @@ initRecapMonthSel();
 // Ouvrir le bon onglet (shortcut ou défaut lola)
 const _startChild = (typeof _childParam !== 'undefined' && _childParam === 'thea') ? 'thea' : 'lola';
 switchTab(_startChild);
-loadCesuInputs();
 updateDupLabel();
 initRecapMonthSel();
 if(loaded){
-  setStatus('✅ Données restaurées depuis la dernière session', 'ok');
+  setStatus('🔄 Connexion Firebase…', '');
 } else {
-  setStatus('💡 Aucune sauvegarde — vos saisies seront auto-sauvegardées', '');
+  setStatus('🔄 Connexion Firebase…', '');
 }
+
+// Charger Firebase puis démarrer la synchro temps réel
+getDoc(_DOC).then(snap=>{
+  if(snap.exists()){
+    try{
+      const remote = JSON.parse(snap.data().data);
+      _applyRemote(remote);
+      if(curChild!=='recap'){ renderCal(curChild); loadCesuInputs(); }
+      recalcAll();
+      localStorage.setItem(LS_KEY, JSON.stringify(_getPayload()));
+    }catch(e){}
+  }
+  setStatus('✅ Connecté — synchronisation active', 'ok');
+  // Écoute temps réel
+  onSnapshot(_DOC, snap=>{
+    if(!snap.exists()) return;
+    try{
+      const remote = JSON.parse(snap.data().data);
+      _applyRemote(remote);
+      if(curChild!=='recap'){ renderCal(curChild); loadCesuInputs(); }
+      recalcAll();
+      setStatus('🔄 Mis à jour', 'ok');
+    }catch(e){}
+  });
+}).catch(()=>{
+  setStatus('⚠️ Hors ligne — données locales', 'warn');
+});
+
+// Exposer les fonctions au HTML (requis avec type="module")
+Object.assign(window, {
+  switchTab, changeMonth, switchRecapTab, setRecapMonth,
+  tog, cycAlsh, setNote, setCesu, dupliquerMois, dupliquerNotes, updateDupLabel,
+  recalc, recalcAll, saveToLocal, exportJSON, importJSON,
+  clearMois, clearAll, renderRecap, initRecapMonthSel
+});
+
+// Exposer au HTML (requis avec type="module")
+Object.assign(window, {
+  switchTab, changeMonth, switchRecapTab, setRecapMonth,
+  tog, cycAlsh, setNote, setCesu, dupliquerMois, dupliquerNotes, updateDupLabel,
+  recalc, recalcAll, saveToLocal, exportJSON, importJSON,
+  clearMois, clearAll, renderRecap, initRecapMonthSel
+});
+</script>
+</body>
+</html>// Autosave : localStorage immédiat + Firebase debounce 800ms
+function autosave(){
+  localStorage.setItem(LS_KEY, JSON.stringify(_getPayload()));
+  clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(async ()=>{
+    try{
+      await setDoc(_DOC, {data: JSON.stringify(_getPayload()), t: Date.now()});
+      setStatus('☁️ Synchronisé à ' + new Date().toLocaleTimeString('fr-FR'), 'ok');
+    } catch(e){
+      setStatus('⚠️ Hors ligne — sauvegardé localement', 'warn');
+    }
+  }, 800);
+}
+
+// ═══════════ PWA SERVICE WORKER ═══════════
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then(reg => console.log('SW enregistré:', reg.scope))
+      .catch(err => console.log('SW erreur:', err));
+  });
+}
+
+// Gestion des shortcuts (lola / thea)
+const _urlParams = new URLSearchParams(window.location.search);
+const _childParam = _urlParams.get('child');
+if (_childParam === 'thea') { curChild = 'thea'; }
+
+// ═══════════ INIT ═══════════
+// Charger données sauvegardées
+const loaded = loadFromLocal();
+document.getElementById('monthLabel').textContent=`${MOIS[curM]} ${curY}`;
+initRecapMonthSel();
+// Ouvrir le bon onglet (shortcut ou défaut lola)
+const _startChild = (typeof _childParam !== 'undefined' && _childParam === 'thea') ? 'thea' : 'lola';
+switchTab(_startChild);
+updateDupLabel();
+initRecapMonthSel();
+if(loaded){
+  setStatus('🔄 Connexion Firebase…', '');
+} else {
+  setStatus('🔄 Connexion Firebase…', '');
+}
+
+// Charger Firebase puis démarrer la synchro temps réel
+getDoc(_DOC).then(snap=>{
+  if(snap.exists()){
+    try{
+      const remote = JSON.parse(snap.data().data);
+      _applyRemote(remote);
+      if(curChild!=='recap'){ renderCal(curChild); loadCesuInputs(); }
+      recalcAll();
+      localStorage.setItem(LS_KEY, JSON.stringify(_getPayload()));
+    }catch(e){}
+  }
+  setStatus('✅ Connecté — synchronisation active', 'ok');
+  // Écoute temps réel
+  onSnapshot(_DOC, snap=>{
+    if(!snap.exists()) return;
+    try{
+      const remote = JSON.parse(snap.data().data);
+      _applyRemote(remote);
+      if(curChild!=='recap'){ renderCal(curChild); loadCesuInputs(); }
+      recalcAll();
+      setStatus('🔄 Mis à jour', 'ok');
+    }catch(e){}
+  });
+}).catch(()=>{
+  setStatus('⚠️ Hors ligne — données locales', 'warn');
+});
+
+// Exposer les fonctions au HTML (requis avec type="module")
+Object.assign(window, {
+  switchTab, changeMonth, switchRecapTab, setRecapMonth,
+  tog, cycAlsh, setNote, setCesu, dupliquerMois, dupliquerNotes, updateDupLabel,
+  recalc, recalcAll, saveToLocal, exportJSON, importJSON,
+  clearMois, clearAll, renderRecap, initRecapMonthSel
+});
+
+// Exposer au HTML (requis avec type="module")
+Object.assign(window, {
+  switchTab, changeMonth, switchRecapTab, setRecapMonth,
+  tog, cycAlsh, setNote, setCesu, dupliquerMois, dupliquerNotes, updateDupLabel,
+  recalc, recalcAll, saveToLocal, exportJSON, importJSON,
+  clearMois, clearAll, renderRecap, initRecapMonthSel
+});
 </script>
 </body>
 </html>
