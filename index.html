@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -203,6 +203,121 @@ html{height:-webkit-fill-available;}
 .sbtn-import{background:#374151;color:#fff;border-color:#4b5563;}
 .sbtn-clear{background:transparent;color:#ef4444;border-color:#ef444460;font-size:.68rem;}
 @media(max-width:600px){.dup-txt{display:none;} #btn-dup{gap:4px;} .sbtn span:last-child{display:none;}}
+
+/* ══════════════════════════════════════════
+   RESPONSIVE MOBILE AMÉLIORÉ
+   ══════════════════════════════════════════ */
+
+/* ── Portrait mobile (< 480px) ── */
+@media (max-width: 480px) and (orientation: portrait) {
+  .header { padding: 8px 10px; }
+  .header-title { font-size: .9rem; }
+  .month-label { font-size: .8rem; min-width: 110px; }
+  .month-nav button { padding: 4px 10px; font-size: .75rem; }
+
+  /* Tabs plus compacts */
+  .tab { padding: 8px 10px; font-size: .72rem; }
+
+  /* Grille calendrier : colonnes réduites */
+  .cal-head,
+  .day-row {
+    grid-template-columns: 28px 38px 34px 58px 58px 58px 58px 65px 1fr !important;
+    min-width: 480px;
+  }
+  .cal-head div { padding: 6px 2px; font-size: .55rem; }
+  .cell { padding: 3px 2px; }
+  .btn { font-size: .58rem; padding: 2px 5px; min-width: 44px; }
+  .rb { font-size: .6rem; padding: 2px 5px; }
+  .date-n { font-size: .78rem; }
+  .date-d { font-size: .58rem; }
+
+  /* Sidebar en colonne unique */
+  .sidebar { grid-template-columns: 1fr !important; }
+  .tc-amount { font-size: 1.5rem; }
+
+  /* Save bar compacte */
+  .save-bar { padding: 5px 8px; gap: 5px; }
+  .sbtn { font-size: .65rem; padding: 4px 8px; }
+  .save-status { font-size: .65rem; }
+
+  /* Boutons dup */
+  #btn-dup { gap: 4px; padding: 0 4px; }
+}
+
+/* ── Paysage mobile (hauteur < 500px) ── */
+@media (max-height: 500px) and (orientation: landscape) {
+  /* Header ultra compact */
+  .header { padding: 5px 12px; }
+  .header-title { font-size: .85rem; }
+  .header-sub { display: none; }
+  .month-nav button { padding: 3px 10px; }
+
+  /* Tabs plus petits */
+  .tab { padding: 6px 12px; font-size: .78rem; }
+
+  /* Layout : sidebar à droite, calendrier à gauche */
+  .page-inner {
+    grid-template-columns: 1fr 240px !important;
+    padding: 8px 12px;
+    gap: 10px;
+  }
+
+  /* Grille calendrier paysage : colonnes plus larges */
+  .cal-head,
+  .day-row {
+    grid-template-columns: 30px 42px 38px 68px 68px 68px 68px 75px 1fr !important;
+    min-width: 520px;
+  }
+  .cal-head div { padding: 5px 2px; font-size: .58rem; }
+  .day-row { min-height: 36px; }
+  .cell { padding: 3px 2px; }
+  .btn { font-size: .6rem; padding: 2px 5px; min-width: 48px; }
+  .rb { font-size: .62rem; padding: 2px 5px; }
+
+  /* Sidebar compacte en paysage */
+  .sidebar { gap: 8px; }
+  .total-card { padding: 10px 12px; }
+  .tc-amount { font-size: 1.3rem; }
+  .tc-label { font-size: .62rem; }
+  .card { padding: 10px 12px; }
+  .card-title { margin-bottom: 6px; font-size: .62rem; }
+  .dr { font-size: .7rem; padding: 3px 0; }
+  .tr { padding: 2px 0; }
+  .tr label { font-size: .68rem; }
+  .tr input { font-size: .72rem; padding: 2px 5px; width: 52px; }
+
+  /* Save bar paysage */
+  .save-bar { padding: 4px 10px; gap: 6px; }
+  .sbtn { font-size: .65rem; padding: 3px 8px; }
+  .save-status { font-size: .62rem; }
+}
+
+/* ── Tablette portrait (481-768px) ── */
+@media (min-width: 481px) and (max-width: 768px) and (orientation: portrait) {
+  .cal-head,
+  .day-row {
+    grid-template-columns: 32px 44px 40px 65px 65px 65px 65px 72px 1fr !important;
+    min-width: 520px;
+  }
+  .page-inner { grid-template-columns: 1fr !important; }
+  .sidebar { grid-template-columns: repeat(2, 1fr) !important; }
+}
+
+/* ── Tablette paysage (769-960px) ── */
+@media (min-width: 769px) and (max-width: 960px) and (orientation: landscape) {
+  .page-inner { grid-template-columns: 1fr 260px !important; }
+  .cal-head,
+  .day-row {
+    grid-template-columns: 34px 46px 42px 68px 68px 68px 68px 76px 1fr !important;
+  }
+}
+
+/* ── Orientation change : animation douce ── */
+@media screen {
+  .cal-wrap { transition: none; }
+  .page-inner { transition: grid-template-columns 0.2s ease; }
+}
+
 </style>
 </head>
 <body>
@@ -1024,6 +1139,25 @@ if ('serviceWorker' in navigator) {
 const _urlParams = new URLSearchParams(window.location.search);
 const _childParam = _urlParams.get('child');
 if (_childParam === 'thea') { curChild = 'thea'; }
+
+
+// ══════════════════════════════════════════
+// GESTION ROTATION ÉCRAN
+// ══════════════════════════════════════════
+function handleOrientationChange() {
+  // Forcer le recalcul du layout après rotation
+  setTimeout(() => {
+    if (curChild !== 'recap') renderCal(curChild);
+    // Scroll vers le haut après rotation
+    window.scrollTo(0, 0);
+  }, 150);
+}
+
+window.addEventListener('orientationchange', handleOrientationChange);
+window.addEventListener('resize', () => {
+  clearTimeout(window._resizeTimer);
+  window._resizeTimer = setTimeout(handleOrientationChange, 200);
+});
 
 // ═══════════ DONNÉES INITIALES ═══════════
 (function(){
