@@ -1,10 +1,10 @@
-const CACHE_NAME = 'planning-periscolaire-v1';
+const CACHE_NAME = 'planning-periscolaire-v2';
 const ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png'
+  '/Periscolaire-et-gardes/',
+  '/Periscolaire-et-gardes/index.html',
+  '/Periscolaire-et-gardes/manifest.json',
+  '/Periscolaire-et-gardes/icons/icon-192.png',
+  '/Periscolaire-et-gardes/icons/icon-512.png'
 ];
 
 // Installation : mise en cache des fichiers
