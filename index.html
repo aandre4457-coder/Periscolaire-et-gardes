@@ -206,30 +206,25 @@ html{height:-webkit-fill-available;}
 </style>
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getFirestore, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getFirestore, doc, setDoc, getDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
-try {
-  const fbApp = initializeApp({
-    apiKey: "AIzaSyB7PjA_6wmV5uyAqdx3S0eDfXd4twPCid4",
-    authDomain: "planning-periscolaire.firebaseapp.com",
-    projectId: "planning-periscolaire",
-    storageBucket: "planning-periscolaire.firebasestorage.app",
-    messagingSenderId: "247099221828",
-    appId: "1:247099221828:web:92796a38866349b1ff1911"
-  });
-  const db = getFirestore(fbApp);
-  const testDoc = doc(db, 'planning', 'test');
-  getDoc(testDoc).then(snap => {
-    console.log('✅ FIREBASE OK — connexion réussie. Document existe:', snap.exists());
-    window._FIREBASE_TEST_OK = true;
-  }).catch(err => {
-    console.error('❌ FIREBASE ERREUR:', err.message);
-    window._FIREBASE_TEST_OK = false;
-  });
-} catch(e) {
-  console.error('❌ FIREBASE INIT ERREUR:', e.message);
-}
+const _fbApp = initializeApp({
+  apiKey: "AIzaSyB7PjA_6wmV5uyAqdx3S0eDfXd4twPCid4",
+  authDomain: "planning-periscolaire.firebaseapp.com",
+  projectId: "planning-periscolaire",
+  storageBucket: "planning-periscolaire.firebasestorage.app",
+  messagingSenderId: "247099221828",
+  appId: "1:247099221828:web:92796a38866349b1ff1911"
+});
+window._fbDb  = getFirestore(_fbApp);
+window._fbDoc = doc(window._fbDb, 'planning', 'state');
+window._fbSetDoc = setDoc;
+window._fbGetDoc = getDoc;
+window._fbOnSnapshot = onSnapshot;
+window._fbReady = true;
+console.log('✅ Firebase prêt');
 </script>
+
 </head>
 <body>
 
@@ -1058,11 +1053,23 @@ function setTarifs(tarifs){
   });
 }
 
-// Autosave : toutes les interactions déclenchent un save silencieux
+// Autosave : localStorage immédiat + Firebase avec debounce
+let _fbSaveTimer = null;
 function autosave(){
   const data = {STATE, CESU_STATE, curY, curM, tarifs: getTarifs()};
   localStorage.setItem(LS_KEY, JSON.stringify(data));
-  setStatus('💾 Sauvegardé automatiquement à ' + new Date().toLocaleTimeString('fr-FR'), 'ok');
+  setStatus('💾 Sauvegardé localement à ' + new Date().toLocaleTimeString('fr-FR'), 'ok');
+
+  clearTimeout(_fbSaveTimer);
+  _fbSaveTimer = setTimeout(async ()=>{
+    if(!window._fbReady) return;
+    try{
+      await window._fbSetDoc(window._fbDoc, {data: JSON.stringify(data), t: Date.now()});
+      setStatus('☁️ Synchronisé à ' + new Date().toLocaleTimeString('fr-FR'), 'ok');
+    }catch(e){
+      setStatus('⚠️ Hors ligne — sauvegardé localement', 'warn');
+    }
+  }, 800);
 }
 
 // ═══════════ PWA SERVICE WORKER ═══════════
@@ -1100,10 +1107,47 @@ loadCesuInputs();
 updateDupLabel();
 initRecapMonthSel();
 if(loaded){
-  setStatus('✅ Données restaurées depuis la dernière session', 'ok');
+  setStatus('✅ Données restaurées (local) — connexion Firebase…', 'ok');
 } else {
-  setStatus('💡 Aucune sauvegarde — vos saisies seront auto-sauvegardées', '');
+  setStatus('🔄 Connexion Firebase…', '');
 }
+
+// Connexion Firebase : charger puis écouter en temps réel
+setTimeout(()=>{
+  if(!window._fbReady){ setStatus('⚠️ Firebase indisponible — mode local', 'warn'); return; }
+
+  window._fbGetDoc(window._fbDoc).then(snap=>{
+    if(snap.exists()){
+      try{
+        const remote = JSON.parse(snap.data().data);
+        if(remote.STATE){ Object.keys(STATE).forEach(k=>delete STATE[k]); Object.assign(STATE, remote.STATE); }
+        if(remote.CESU_STATE){ Object.keys(CESU_STATE).forEach(k=>delete CESU_STATE[k]); Object.assign(CESU_STATE, remote.CESU_STATE); }
+        if(remote.tarifs) setTarifs(remote.tarifs);
+        if(curChild!=='recap'){ renderCal(curChild); loadCesuInputs(); }
+        recalcAll();
+        localStorage.setItem(LS_KEY, JSON.stringify({STATE, CESU_STATE, curY, curM, tarifs: getTarifs()}));
+      }catch(e){ console.error('Erreur lecture Firebase:', e); }
+    }
+    setStatus('✅ Connecté — synchronisation active', 'ok');
+
+    // Écoute temps réel
+    window._fbOnSnapshot(window._fbDoc, snap=>{
+      if(!snap.exists()) return;
+      try{
+        const remote = JSON.parse(snap.data().data);
+        if(remote.STATE){ Object.keys(STATE).forEach(k=>delete STATE[k]); Object.assign(STATE, remote.STATE); }
+        if(remote.CESU_STATE){ Object.keys(CESU_STATE).forEach(k=>delete CESU_STATE[k]); Object.assign(CESU_STATE, remote.CESU_STATE); }
+        if(remote.tarifs) setTarifs(remote.tarifs);
+        if(curChild!=='recap'){ renderCal(curChild); loadCesuInputs(); }
+        recalcAll();
+        setStatus('🔄 Mis à jour par un autre appareil', 'ok');
+      }catch(e){ console.error('Erreur sync Firebase:', e); }
+    });
+  }).catch(err=>{
+    console.error('Erreur connexion Firebase:', err);
+    setStatus('⚠️ Hors ligne — données locales uniquement', 'warn');
+  });
+}, 600);
 </script>
 </body>
 </html>
