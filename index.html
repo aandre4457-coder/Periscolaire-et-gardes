@@ -204,6 +204,32 @@ html{height:-webkit-fill-available;}
 .sbtn-clear{background:transparent;color:#ef4444;border-color:#ef444460;font-size:.68rem;}
 @media(max-width:600px){.dup-txt{display:none;} #btn-dup{gap:4px;} .sbtn span:last-child{display:none;}}
 </style>
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getFirestore, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+try {
+  const fbApp = initializeApp({
+    apiKey: "AIzaSyB7PjA_6wmV5uyAqdx3S0eDfXd4twPCid4",
+    authDomain: "planning-periscolaire.firebaseapp.com",
+    projectId: "planning-periscolaire",
+    storageBucket: "planning-periscolaire.firebasestorage.app",
+    messagingSenderId: "247099221828",
+    appId: "1:247099221828:web:92796a38866349b1ff1911"
+  });
+  const db = getFirestore(fbApp);
+  const testDoc = doc(db, 'planning', 'test');
+  getDoc(testDoc).then(snap => {
+    console.log('✅ FIREBASE OK — connexion réussie. Document existe:', snap.exists());
+    window._FIREBASE_TEST_OK = true;
+  }).catch(err => {
+    console.error('❌ FIREBASE ERREUR:', err.message);
+    window._FIREBASE_TEST_OK = false;
+  });
+} catch(e) {
+  console.error('❌ FIREBASE INIT ERREUR:', e.message);
+}
+</script>
 </head>
 <body>
 
