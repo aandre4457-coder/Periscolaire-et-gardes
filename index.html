@@ -696,15 +696,7 @@ function renderCal(enfant){
       const sv=s.soi?`<span class="btn ${pCls}">✓ Soir</span>`:`<span class="btn off">Soir?</span>`;
       soiCell=`<div class="cell" onclick="tog('${k}','soi')">${sv}</div>`;
 
-      // H ou R : pas au travail, ALSH possible même hors vacances
-      if(!isMe && (r==='H'||r==='R'||r==='J'||r==='F') && isSchool){
-        const alshVBtn = s.alshVac
-          ? `<span class="btn on-alsh" style="font-size:.63rem;min-width:60px;">🏕 ALSH</span>`
-          : `<span class="btn off" style="font-size:.63rem;min-width:60px;">ALSH?</span>`;
-        mercCell=`<div class="cell" onclick="togAlshVac('${k}')">${alshVBtn}</div>`;
-      } else {
-        mercCell=`<div class="cell"><span style="color:#eee;font-size:.6rem;">—</span></div>`;
-      }
+      mercCell=`<div class="cell"><span style="color:#eee;font-size:.6rem;">—</span></div>`;
     }
 
     // Note auto orthophoniste pour Lola le vendredi
