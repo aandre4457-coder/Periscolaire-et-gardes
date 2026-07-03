@@ -699,15 +699,14 @@ function renderCal(enfant){
       mercCell=`<div class="cell"><span style="color:#eee;font-size:.6rem;">—</span></div>`;
     }
 
-    // Note auto orthophoniste pour Lola le vendredi
-    if(enfant==='lola' && dow===5 && !isVac && !isFeri && !s.note){
-      s.note='Orthophoniste 16h20';
-    }
     const noteRedCls = s.noteRed ? 'red' : '';
     const noteRedBtnCls = s.noteRed ? 'active' : '';
+    // Note auto orthophoniste pour Lola le vendredi : affichée en placeholder si note vide
+    const isOrthoDay = enfant==='lola' && dow===5 && !isVac && !isFeri;
+    const notePlaceholder = isOrthoDay ? 'Orthophoniste 16h20' : 'note…';
     const noteCell=`<div class="cell note-cell">
       <button class="note-red-btn ${noteRedBtnCls}" onclick="toggleNoteRed('${k}')" title="Écrire en rouge">🔴</button>
-      <input class="note-inp ${noteRedCls}" type="text" value="${(s.note||'').replace(/"/g,'&quot;')}" placeholder="note…" oninput="setNote('${k}',this.value)">
+      <input class="note-inp ${noteRedCls}" type="text" value="${(s.note||'').replace(/"/g,'&quot;')}" placeholder="${notePlaceholder}" oninput="setNote('${k}',this.value)">
     </div>`;
     html+=`<div class="${rowCls}">${wkCell}${dateCell}${roulCell}${nouCell}${matCell}${midCell}${soiCell}${mercCell}${noteCell}</div>`;
   }
@@ -778,7 +777,7 @@ function dupliquerMois(){
     const kd = sk(curY,curM,d,dst);
     const ss = STATE[ks];
     if(ss){
-      const {note:_n, ...rest} = ss; STATE[kd] = Object.assign({}, rest, {note:''});
+      const {note:_n, noteRed:_nr, ...rest} = ss; STATE[kd] = Object.assign({}, rest, {note:'', noteRed:false});
       count++;
     } else {
       // reset destination si source vide
@@ -807,7 +806,10 @@ function dupliquerNotes(){
     const kd=sk(curY,curM,d,dst);
     const ss=STATE[ks];
     const sd=gs(kd);
-    sd.note = ss ? (ss.note||'') : '';
+    // Ne pas copier la note auto Orthophoniste (propre à Lola)
+    const noteACopier = ss ? (ss.note||'') : '';
+    sd.note = noteACopier.includes('Orthophoniste') ? '' : noteACopier;
+    sd.noteRed = (ss && !noteACopier.includes('Orthophoniste')) ? (ss.noteRed||false) : false;
   }
   autosave();
   const btn=document.getElementById('dup-notes-btn');
@@ -1032,7 +1034,7 @@ function renderRecapMensuel(){
     {lbl:'📅 Merc entier',      lv:rl.me,   tv:rt.me,   tid:'t-me'},
     {lbl:'📅 Merc matin+repas', lv:rl.mpm,  tv:rt.mpm,  tid:'t-mpm'},
     {lbl:'📅 Merc AM+repas',    lv:rl.mam,  tv:rt.mam,  tid:'t-mam'},
-    {lbl:'🏕 ALSH',             lv:rl.alshT>0?1:0, tv:rt.alshT>0?1:0, tid:null, lMont:rl.alshT, tMont:rt.alshT},
+    {lbl:'🏕 ALSH vacances',    lv:0, tv:0, tid:null, lMont:rl.alshVacTotal||0, tMont:rt.alshVacTotal||0},
   ];
 
   let rows='';
