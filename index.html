@@ -118,9 +118,13 @@ html{height:-webkit-fill-available;}
 /* Bloqué */
 .blocked{color:#e8b4c4;font-size:.6rem;text-align:center;}
 .note-cell{padding:4px 5px;}
-.note-inp{width:100%;border:none;background:transparent;font-size:.68rem;color:#555;outline:none;padding:2px 4px;border-radius:4px;font-family:inherit;}
+.note-inp{width:100%;border:none;background:transparent;font-size:.82rem;color:#333;outline:none;padding:2px 4px;border-radius:4px;font-family:inherit;font-weight:500;}
 .note-inp:focus{background:#f5f6ff;border:1px solid #c7caee;}
 .note-inp::placeholder{color:#ccc;}
+.note-inp.red{color:#dc2626;font-weight:700;}
+.note-red-btn{font-size:.6rem;cursor:pointer;border:none;background:none;padding:1px 3px;border-radius:3px;color:#aaa;line-height:1;flex-shrink:0;}
+.note-red-btn.active{color:#dc2626;}
+.note-cell{display:flex;align-items:center;gap:2px;}
 
 /* SIDEBAR */
 .sidebar{display:flex;flex-direction:column;gap:13px;}
@@ -248,6 +252,8 @@ console.log('✅ Firebase prêt');
     📂 Importer fichier
     <input type="file" accept=".json" onchange="importJSON(event)" style="display:none;">
   </label>
+  <button class="sbtn" onclick="undo()" id="btn-undo" style="background:#374151;color:#fff;border-color:#4b5563;opacity:.4;" title="Annuler la dernière action">↩ Annuler</button>
+  <button class="sbtn" onclick="redo()" id="btn-redo" style="background:#374151;color:#fff;border-color:#4b5563;opacity:.4;" title="Rétablir">↪ Rétablir</button>
   <button class="sbtn sbtn-clear" onclick="clearMois()">🗑 Effacer le mois</button>
   <button class="sbtn sbtn-clear" onclick="clearAll()">🗑 Effacer tout</button>
 </div>
@@ -314,7 +320,7 @@ console.log('✅ Firebase prêt');
         <div class="dr"><span class="dl">📅 Merc entier</span><span class="dv" id="d-lola-me">—</span></div>
         <div class="dr"><span class="dl">📅 Merc mat+repas</span><span class="dv" id="d-lola-mpm">—</span></div>
         <div class="dr"><span class="dl">📅 Merc AM+repas</span><span class="dv" id="d-lola-mam">—</span></div>
-        <div class="dr"><span class="dl">🏕 ALSH</span><span class="dv" id="d-lola-al">—</span></div>
+        <div class="dr"><span class="dl">🏕 ALSH vacances</span><span class="dv" id="d-lola-alvac">—</span></div>
       </div>
       <div class="card">
         <div class="card-title">Tarifs (modifiables)</div>
@@ -378,7 +384,7 @@ console.log('✅ Firebase prêt');
         <div class="dr"><span class="dl">📅 Merc entier</span><span class="dv" id="d-thea-me">—</span></div>
         <div class="dr"><span class="dl">📅 Merc mat+repas</span><span class="dv" id="d-thea-mpm">—</span></div>
         <div class="dr"><span class="dl">📅 Merc AM+repas</span><span class="dv" id="d-thea-mam">—</span></div>
-        <div class="dr"><span class="dl">🏕 ALSH</span><span class="dv" id="d-thea-al">—</span></div>
+        <div class="dr"><span class="dl">🏕 ALSH vacances</span><span class="dv" id="d-thea-alvac">—</span></div>
       </div>
       <div class="card">
         <div class="card-title">Roulement Nicolas</div>
@@ -461,7 +467,7 @@ function getRoul(date){
   return CYCLE[((JAN1_POS+d)%49+49)%49];
 }
 const ROUL_CYCLE=['M','A','N','J','F','R','H'];
-function cycleRoul(dkey){
+function cycleRoul(dkey){ pushHistory();
   const [yy,mm,dd]=dkey.split('-').map(Number);
   const date=new Date(yy,mm-1,dd);
   const current=getRoul(date);
@@ -489,13 +495,54 @@ const _now=new Date(); let curY=_now.getFullYear(), curM=_now.getMonth(), curChi
 // champs : nou(nounou), mat(matin péri), mid(midi), soi(soir), mercE(merc entier), mercPM(merc AM+repas), alsh(0/2/3/4/5/'S')
 const STATE={};
 const CESU_STATE={};
-const ROUL_OVERRIDE={}; // clé 'YYYY-MM-DD' → code quart personnalisé // clé "YYYY-MM_enfant" → montant
+const ROUL_OVERRIDE={}; // clé 'YYYY-MM-DD' → code quart personnalisé
+const HISTORY=[]; // pile undo
+const HISTORY_REDO=[]; // pile redo
+const MAX_HISTORY=30;
+
+function _updateUndoRedo(){
+  const u=document.getElementById('btn-undo');
+  const r=document.getElementById('btn-redo');
+  if(u) u.style.opacity=HISTORY.length>0?'1':'0.4';
+  if(r) r.style.opacity=HISTORY_REDO.length>0?'1':'0.4';
+}
+
+function pushHistory(){
+  HISTORY.push(JSON.stringify({STATE,CESU_STATE,ROUL_OVERRIDE}));
+  if(HISTORY.length>MAX_HISTORY) HISTORY.shift();
+  HISTORY_REDO.length=0; // toute nouvelle action efface le redo
+  _updateUndoRedo();
+}
+
+function undo(){
+  if(!HISTORY.length) return;
+  // Sauvegarder l'état actuel dans redo
+  HISTORY_REDO.push(JSON.stringify({STATE,CESU_STATE,ROUL_OVERRIDE}));
+  const prev=JSON.parse(HISTORY.pop());
+  Object.keys(STATE).forEach(k=>delete STATE[k]); Object.assign(STATE,prev.STATE);
+  Object.keys(CESU_STATE).forEach(k=>delete CESU_STATE[k]); Object.assign(CESU_STATE,prev.CESU_STATE);
+  Object.keys(ROUL_OVERRIDE).forEach(k=>delete ROUL_OVERRIDE[k]); Object.assign(ROUL_OVERRIDE,prev.ROUL_OVERRIDE);
+  if(curChild!=='recap'){ renderCal(curChild); loadCesuInputs(); }
+  recalcAll(); autosave(); _updateUndoRedo();
+}
+
+function redo(){
+  if(!HISTORY_REDO.length) return;
+  // Sauvegarder l'état actuel dans undo
+  HISTORY.push(JSON.stringify({STATE,CESU_STATE,ROUL_OVERRIDE}));
+  const next=JSON.parse(HISTORY_REDO.pop());
+  Object.keys(STATE).forEach(k=>delete STATE[k]); Object.assign(STATE,next.STATE);
+  Object.keys(CESU_STATE).forEach(k=>delete CESU_STATE[k]); Object.assign(CESU_STATE,next.CESU_STATE);
+  Object.keys(ROUL_OVERRIDE).forEach(k=>delete ROUL_OVERRIDE[k]); Object.assign(ROUL_OVERRIDE,next.ROUL_OVERRIDE);
+  if(curChild!=='recap'){ renderCal(curChild); loadCesuInputs(); }
+  recalcAll(); autosave(); _updateUndoRedo();
+} // clé "YYYY-MM_enfant" → montant
 const ALSH_SEQ=[0,2,3,4,5,'S'];
 const ALSH_LBL={0:'ALSH?',2:'2j',3:'3j',4:'4j',5:'5j','S':'Gdes vacs'};
 
 function sk(y,m,d,c){return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}_${c}`;}
 function dk(y,m,d){return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;}
-function gs(k){if(!STATE[k])STATE[k]={nou:false,mat:false,mid:false,soi:false,mercE:false,mercPM:false,mercAM:false,alsh:0,note:''};return STATE[k];}
+function gs(k){if(!STATE[k])STATE[k]={nou:false,mat:false,mid:false,soi:false,mercE:false,mercPM:false,mercAM:false,alsh:0,alshVac:false,note:'',noteRed:false};return STATE[k];}
 
 function wn(date){
   const d=new Date(Date.UTC(date.getFullYear(),date.getMonth(),date.getDate()));
@@ -580,32 +627,63 @@ function renderCal(enfant){
 
     let nouCell, matCell, midCell, soiCell, mercCell;
 
+    // Été = juillet (6) et août (7)
+    const isEte = (curM===6||curM===7);
+    const isVacHorsEte = isVac && !isFeri && !isEte;
+
     if(isWE||isFeri){
       nouCell=matCell=midCell=soiCell=`<div class="cell"><span style="color:#ddd;font-size:.6rem;">—</span></div>`;
       mercCell=`<div class="cell"><span style="color:#ddd;font-size:.6rem;">—</span></div>`;
 
     } else if(isMe){
       // MERCREDI
-      const nv=s.nou?`<span class="btn on-nou">✓ Nounou</span>`:`<span class="btn off">Nounou?</span>`;
-      nouCell=`<div class="cell" onclick="tog('${k}','nou')">${nv}</div>`;
-      matCell=`<div class="cell"><span style="font-size:.6rem;color:#ccc;">—</span></div>`;
-      midCell=`<div class="cell"><span style="font-size:.6rem;color:#ccc;">—</span></div>`;
-      soiCell=`<div class="cell"><span style="font-size:.6rem;color:#ccc;">—</span></div>`;
-      const mev  = s.mercE ?`<span class="btn ${mCls}" style="font-size:.6rem;">🗓 Entier</span>`       :`<span class="btn off" style="font-size:.6rem;">Entier?</span>`;
-      const mpmv = s.mercPM?`<span class="btn ${mCls}" style="font-size:.6rem;">🌅 Matin+repas</span>`  :`<span class="btn off" style="font-size:.6rem;">Mat+repas?</span>`;
-      const mamv = s.mercAM?`<span class="btn ${mCls}" style="font-size:.6rem;">🕐 Après-midi+repas</span>`:`<span class="btn off" style="font-size:.6rem;">AM+repas?</span>`;
-      const isGrandesVacs = (curM===6||curM===7);
-      const alshLabel = isGrandesVacs ? 'Gdes vacs?' : 'ALSH?';
-      const alv  = s.alsh  ?`<span class="btn on-alsh" style="font-size:.6rem;">${ALSH_LBL[s.alsh]}</span>`:(isGrandesVacs?`<span class="btn off" style="font-size:.6rem;">${alshLabel}</span>`:`<span class="btn off" style="font-size:.6rem;">ALSH?</span>`);
-      mercCell=`<div class="cell" style="flex-direction:column;gap:3px;">
-        <div onclick="tog('${k}','mercE')">${mev}</div>
-        <div onclick="tog('${k}','mercPM')">${mpmv}</div>
-        <div onclick="tog('${k}','mercAM')">${mamv}</div>
-        <div onclick="cycAlsh('${k}')">${alv}</div>
-      </div>`;
+      nouCell=`<div class="cell"><span style="color:#ddd;font-size:.6rem;">—</span></div>`;
+      matCell=`<div class="cell"><span style="color:#ddd;font-size:.6rem;">—</span></div>`;
+      midCell=`<div class="cell"><span style="color:#ddd;font-size:.6rem;">—</span></div>`;
+      soiCell=`<div class="cell"><span style="color:#ddd;font-size:.6rem;">—</span></div>`;
+
+      if(isVacHorsEte){
+        // Mercredi pendant vacances scolaires : uniquement ALSH
+        const alshVBtn = s.alshVac
+          ? `<span class="btn on-alsh" style="font-size:.63rem;min-width:60px;">🏕 ALSH</span>`
+          : `<span class="btn off" style="font-size:.63rem;min-width:60px;">ALSH?</span>`;
+        mercCell=`<div class="cell" onclick="togAlshVac('${k}')">${alshVBtn}</div>`;
+      } else {
+        // Mercredi normal (école ou été) : options merc + ALSH été
+        const nv=s.nou?`<span class="btn on-nou">✓ Nounou</span>`:`<span class="btn off">Nounou?</span>`;
+        nouCell=`<div class="cell" onclick="tog('${k}','nou')">${nv}</div>`;
+        const mev  = s.mercE ?`<span class="btn ${mCls}" style="font-size:.6rem;">🗓 Entier</span>`       :`<span class="btn off" style="font-size:.6rem;">Entier?</span>`;
+        const mpmv = s.mercPM?`<span class="btn ${mCls}" style="font-size:.6rem;">🌅 Mat+repas</span>`    :`<span class="btn off" style="font-size:.6rem;">Mat+repas?</span>`;
+        const mamv = s.mercAM?`<span class="btn ${mCls}" style="font-size:.6rem;">🕐 AM+repas</span>`     :`<span class="btn off" style="font-size:.6rem;">AM+repas?</span>`;
+        mercCell=`<div class="cell" style="flex-direction:column;gap:3px;">
+          <div onclick="tog('${k}','mercE')">${mev}</div>
+          <div onclick="tog('${k}','mercPM')">${mpmv}</div>
+          <div onclick="tog('${k}','mercAM')">${mamv}</div>
+        </div>`;
+      }
+
+    } else if(isVacHorsEte && !isWE){
+      // ── JOURS DE VACANCES SCOLAIRES (hors été, hors WE) ──
+      // Uniquement le bouton ALSH, tout le reste masqué
+      nouCell=`<div class="cell"><span style="color:#ddd;font-size:.6rem;">—</span></div>`;
+      matCell=`<div class="cell"><span style="color:#ddd;font-size:.6rem;">—</span></div>`;
+      midCell=`<div class="cell"><span style="color:#ddd;font-size:.6rem;">—</span></div>`;
+      soiCell=`<div class="cell"><span style="color:#ddd;font-size:.6rem;">—</span></div>`;
+      if(!isMe){
+        const alshVBtn = s.alshVac
+          ? `<span class="btn on-alsh" style="font-size:.63rem;min-width:60px;">🏕 ALSH</span>`
+          : `<span class="btn off" style="font-size:.63rem;min-width:60px;">ALSH?</span>`;
+        mercCell=`<div class="cell" onclick="togAlshVac('${k}')">${alshVBtn}</div>`;
+      } else {
+        // Mercredi vacances : uniquement ALSH
+        const alshVBtn = s.alshVac
+          ? `<span class="btn on-alsh" style="font-size:.63rem;min-width:60px;">🏕 ALSH</span>`
+          : `<span class="btn off" style="font-size:.63rem;min-width:60px;">ALSH?</span>`;
+        mercCell=`<div class="cell" onclick="togAlshVac('${k}')">${alshVBtn}</div>`;
+      }
 
     } else {
-      // LUNDI MARDI JEUDI VENDREDI (+ jeudi)
+      // ── LUNDI MARDI JEUDI VENDREDI (jours d'école normaux) ──
       const nv=s.nou?`<span class="btn on-nou">✓ Nounou</span>`:`<span class="btn off">Nounou?</span>`;
       nouCell=`<div class="cell" onclick="tog('${k}','nou')">${nv}</div>`;
 
@@ -618,10 +696,27 @@ function renderCal(enfant){
       const sv=s.soi?`<span class="btn ${pCls}">✓ Soir</span>`:`<span class="btn off">Soir?</span>`;
       soiCell=`<div class="cell" onclick="tog('${k}','soi')">${sv}</div>`;
 
-      mercCell=`<div class="cell"><span style="color:#eee;font-size:.6rem;">—</span></div>`;
+      // H ou R : pas au travail, ALSH possible même hors vacances
+      if(!isMe && (r==='H'||r==='R'||r==='J'||r==='F') && isSchool){
+        const alshVBtn = s.alshVac
+          ? `<span class="btn on-alsh" style="font-size:.63rem;min-width:60px;">🏕 ALSH</span>`
+          : `<span class="btn off" style="font-size:.63rem;min-width:60px;">ALSH?</span>`;
+        mercCell=`<div class="cell" onclick="togAlshVac('${k}')">${alshVBtn}</div>`;
+      } else {
+        mercCell=`<div class="cell"><span style="color:#eee;font-size:.6rem;">—</span></div>`;
+      }
     }
 
-    const noteCell=`<div class="cell note-cell"><input class="note-inp" type="text" value="${(s.note||'').replace(/"/g,'&quot;')}" placeholder="note…" oninput="setNote('${k}',this.value)"></div>`;
+    // Note auto orthophoniste pour Lola le vendredi
+    if(enfant==='lola' && dow===5 && !isVac && !isFeri && !s.note){
+      s.note='Orthophoniste 16h20';
+    }
+    const noteRedCls = s.noteRed ? 'red' : '';
+    const noteRedBtnCls = s.noteRed ? 'active' : '';
+    const noteCell=`<div class="cell note-cell">
+      <button class="note-red-btn ${noteRedBtnCls}" onclick="toggleNoteRed('${k}')" title="Écrire en rouge">🔴</button>
+      <input class="note-inp ${noteRedCls}" type="text" value="${(s.note||'').replace(/"/g,'&quot;')}" placeholder="note…" oninput="setNote('${k}',this.value)">
+    </div>`;
     html+=`<div class="${rowCls}">${wkCell}${dateCell}${roulCell}${nouCell}${matCell}${midCell}${soiCell}${mercCell}${noteCell}</div>`;
   }
   document.getElementById(`cal-${enfant}`).innerHTML=html;
@@ -638,11 +733,36 @@ function renderCal(enfant){
 }
 
 // ═══════════ NOTE ═══════════
-function setNote(k,v){const s=gs(k);s.note=v;autosave();}
+function setNote(k,v){pushHistory();const s=gs(k);s.note=v;autosave();}
+
+function toggleNoteRed(k){ pushHistory(); const s=gs(k); s.noteRed=!s.noteRed; autosave(); renderCal(curChild); }
+
+function togAlshVac(k){ pushHistory(); const s=gs(k); s.alshVac=!s.alshVac; autosave(); renderCal(curChild); }
+
+// Calcul coût ALSH vacances par semaine (compte les jours cochés dans chaque semaine ISO)
+function computeAlshVac(enfant,y,m){
+  const nb=dim(y,m);
+  const semaines={};
+  for(let d=1;d<=nb;d++){
+    const date=new Date(y,m,d);
+    const s=STATE[sk(y,m,d,enfant)];
+    if(!s||!s.alshVac) continue;
+    const w=wn(date);
+    if(!semaines[w]) semaines[w]=0;
+    semaines[w]++;
+  }
+  let total=0;
+  const tarifIds={1:'t-al2',2:'t-al2',3:'t-al3',4:'t-al4',5:'t-al5'};
+  for(const [w,nb] of Object.entries(semaines)){
+    const tid=tarifIds[Math.min(nb,5)]||'t-al5';
+    total+=T(tid);
+  }
+  return {semaines, total};
+}
 
 // ═══════════ CESU PAR MOIS ═══════════
 function cesuKey(enfant){ return `${curY}-${String(curM+1).padStart(2,'0')}_${enfant}`; }
-function setCesu(enfant, val){
+function setCesu(enfant, val){ pushHistory();
   CESU_STATE[cesuKey(enfant)] = parseFloat(val)||0;
   recalc(enfant);
   autosave();
@@ -721,7 +841,7 @@ function updateDupLabel(){
 }
 
 // ═══════════ INTERACTIONS ═══════════
-function tog(k,f){
+function tog(k,f){ pushHistory();
   // Logique exclusive : mercE et mercPM ne peuvent pas être actifs en même temps
   const s=gs(k);
   if(f==='mercE'&&!s.mercE){s.mercPM=false;s.mercAM=false;}
@@ -731,7 +851,7 @@ function tog(k,f){
   renderCal(curChild);
   autosave();
 }
-function cycAlsh(k){
+function cycAlsh(k){ pushHistory();
   const s=gs(k);
   // 'S' (Grandes vacances) = uniquement juillet (6) et août (7)
   const isGrandesVacs = (curM===6 || curM===7); // juillet et août
@@ -762,14 +882,24 @@ function computeMonth(enfant,y,m){
     if(s.mercE)me++;
     if(s.mercPM)mpm++;
     if(s.mercAM)mam++;
-    if(s.alsh){const tid=ALSH_IDS[s.alsh];if(tid)alshT+=T(tid);}
+    // s.alsh = ALSH mercredi (été uniquement, pas vacances scolaires hors été)
+    if(s.alsh){
+      const _dk=sk(y,m,d,'').slice(0,-1); // date sans enfant
+      const _date=new Date(y,m,d);
+      const _dkey=_date.getFullYear()+'-'+String(_date.getMonth()+1).padStart(2,'0')+'-'+String(_date.getDate()).padStart(2,'0');
+      const _isVacHE = VACANCES.has(_dkey) && !(m===6||m===7);
+      if(!_isVacHE){ const tid=ALSH_IDS[s.alsh]; if(tid) alshT+=T(tid); }
+    }
+    // alshVac comptabilisé séparément par semaine
   }
-  const total=nou*T('t-nou')+mat*T('t-mat')+mid*T('t-mid')+soi*T('t-soi')+me*T('t-me')+mpm*T('t-mpm')+mam*T('t-mam')+alshT;
-  return {nou,mat,mid,soi,me,mpm,mam,alshT,total};
+  const alshVacTotal=computeAlshVac(enfant,y,m).total;
+  const total=nou*T('t-nou')+mat*T('t-mat')+mid*T('t-mid')+soi*T('t-soi')+me*T('t-me')+mpm*T('t-mpm')+mam*T('t-mam')+alshT+alshVacTotal;
+  return {nou,mat,mid,soi,me,mpm,mam,alshT,alshVacTotal,total};
 }
 
 function recalc(enfant){
   const r=computeMonth(enfant,curY,curM);
+  // total inclut déjà alshVacTotal via computeMonth
   const cesu=getCesu(enfant);
   const reste=Math.max(0,r.total-cesu);
   document.getElementById(`${enfant}-total`).textContent=fmt(r.total);
@@ -790,7 +920,11 @@ function recalc(enfant){
   document.getElementById(`d-${p}-me`).innerHTML=fmtL(r.me,T('t-me'));
   document.getElementById(`d-${p}-mpm`).innerHTML=fmtL(r.mpm,T('t-mpm'));
   document.getElementById(`d-${p}-mam`).innerHTML=fmtL(r.mam,T('t-mam'));
-  document.getElementById(`d-${p}-al`).innerHTML=r.alshT>0?`<b>${fmt(r.alshT)}</b>`:'—';
+  const avEl=document.getElementById(`d-${p}-alvac`);
+  if(avEl) avEl.innerHTML=r.alshVacTotal>0?`<b>${fmt(r.alshVacTotal)}</b>`:'—';
+  // Nombre de jours ALSH cochés ce mois
+  const alshVacDays=Object.values(computeAlshVac(enfant,curY,curM).semaines||{}).reduce((a,b)=>a+b,0);
+  if(avEl&&alshVacDays>0) avEl.innerHTML=`${alshVacDays}j → <b>${fmt(r.alshVacTotal)}</b>`;
 }
 function recalcAll(){recalc('lola');recalc('thea');}
 
