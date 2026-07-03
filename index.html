@@ -455,17 +455,18 @@ console.log('✅ Firebase prêt');
 const CYCLE=['M','A','A','N','N','R','H','R','R','R','M','M','A','A','A','N','N','R','H','R','H','R','M','M','A','A','N','N','N','R','R','R','H','R','H','J','J','J','J','J','R','H','F','F','F','F','H','M','M'];
 const JAN1_POS=31;
 function getRoul(date){
-  const dk=date.toISOString().split('T')[0];
+  const dk=date.getFullYear()+'-'+String(date.getMonth()+1).padStart(2,'0')+'-'+String(date.getDate()).padStart(2,'0');
   if(ROUL_OVERRIDE[dk]) return ROUL_OVERRIDE[dk];
   const d=Math.round((date-new Date(2026,0,1))/86400000);
   return CYCLE[((JAN1_POS+d)%49+49)%49];
 }
 const ROUL_CYCLE=['M','A','N','J','F','R','H'];
 function cycleRoul(dkey){
-  const date=new Date(dkey);
+  const [yy,mm,dd]=dkey.split('-').map(Number);
+  const date=new Date(yy,mm-1,dd);
   const current=getRoul(date);
-  const d=Math.round((date-new Date(2026,0,1))/86400000);
-  const auto=CYCLE[((JAN1_POS+d)%49+49)%49];
+  const doff=Math.round((date-new Date(2026,0,1))/86400000);
+  const auto=CYCLE[((JAN1_POS+doff)%49+49)%49];
   const idx=ROUL_CYCLE.indexOf(current);
   const next=ROUL_CYCLE[(idx+1)%ROUL_CYCLE.length];
   // Si on revient au roulement automatique, supprimer l'override
