@@ -733,19 +733,21 @@ function togAlshVac(k){ pushHistory(); const s=gs(k); s.alshVac=!s.alshVac; auto
 // Calcul coût ALSH vacances par semaine (compte les jours cochés dans chaque semaine ISO)
 function computeAlshVac(enfant,y,m){
   const nb=dim(y,m);
-  const semaines={};
+  const semaines={}; // {numSemaine: {nb, montant}}
+  const tarifIds={1:'t-al2',2:'t-al2',3:'t-al3',4:'t-al4',5:'t-al5'};
   for(let d=1;d<=nb;d++){
     const date=new Date(y,m,d);
     const s=STATE[sk(y,m,d,enfant)];
     if(!s||!s.alshVac) continue;
     const w=wn(date);
-    if(!semaines[w]) semaines[w]=0;
-    semaines[w]++;
+    if(!semaines[w]) semaines[w]={nb:0,montant:0};
+    semaines[w].nb++;
   }
   let total=0;
-  const tarifIds={1:'t-al2',2:'t-al2',3:'t-al3',4:'t-al4',5:'t-al5'};
-  for(const [w,nb] of Object.entries(semaines)){
+  for(const w of Object.keys(semaines)){
+    const nb=semaines[w].nb;
     const tid=tarifIds[Math.min(nb,5)]||'t-al5';
+    semaines[w].montant=T(tid);
     total+=T(tid);
   }
   return {semaines, total};
@@ -888,7 +890,11 @@ function computeMonth(enfant,y,m){
   }
   const alshVacTotal=computeAlshVac(enfant,y,m).total;
   const total=nou*T('t-nou')+mat*T('t-mat')+mid*T('t-mid')+soi*T('t-soi')+me*T('t-me')+mpm*T('t-mpm')+mam*T('t-mam')+alshT+alshVacTotal;
-  return {nou,mat,mid,soi,me,mpm,mam,alshT,alshVacTotal,total};
+  // Détail semaines ALSH pour le recap
+  const _alshVacSems=computeAlshVac(enfant,y,m).semaines;
+  const _alshVacSemDetail=Object.keys(_alshVacSems).sort((a,b)=>Number(a)-Number(b))
+    .map(w=>`S${w}:${_alshVacSems[w].nb}j`).join(' / ');
+  return {nou,mat,mid,soi,me,mpm,mam,alshT,alshVacTotal,alshVacSemDetail:_alshVacSemDetail,total};
 }
 
 function recalc(enfant){
@@ -915,10 +921,24 @@ function recalc(enfant){
   document.getElementById(`d-${p}-mpm`).innerHTML=fmtL(r.mpm,T('t-mpm'));
   document.getElementById(`d-${p}-mam`).innerHTML=fmtL(r.mam,T('t-mam'));
   const avEl=document.getElementById(`d-${p}-alvac`);
-  if(avEl) avEl.innerHTML=r.alshVacTotal>0?`<b>${fmt(r.alshVacTotal)}</b>`:'—';
-  // Nombre de jours ALSH cochés ce mois
-  const alshVacDays=Object.values(computeAlshVac(enfant,curY,curM).semaines||{}).reduce((a,b)=>a+b,0);
-  if(avEl&&alshVacDays>0) avEl.innerHTML=`${alshVacDays}j → <b>${fmt(r.alshVacTotal)}</b>`;
+  if(avEl){
+    const alshVacData=computeAlshVac(enfant,curY,curM);
+    const sems=alshVacData.semaines;
+    const semKeys=Object.keys(sems).sort((a,b)=>Number(a)-Number(b));
+    if(semKeys.length===0){
+      avEl.innerHTML='—';
+    } else {
+      let html='';
+      semKeys.forEach((w,i)=>{
+        const {nb,montant}=sems[w];
+        html+=`<div style="font-size:.72rem;">S${w} : ${nb}j → <b>${fmt(montant)}</b></div>`;
+      });
+      if(semKeys.length>1){
+        html+=`<div style="font-size:.72rem;border-top:1px solid #f0f2f8;margin-top:2px;padding-top:2px;">Total : <b>${fmt(alshVacData.total)}</b></div>`;
+      }
+      avEl.innerHTML=html;
+    }
+  }
 }
 function recalcAll(){recalc('lola');recalc('thea');}
 
@@ -1034,7 +1054,7 @@ function renderRecapMensuel(){
     {lbl:'📅 Merc entier',      lv:rl.me,   tv:rt.me,   tid:'t-me'},
     {lbl:'📅 Merc matin+repas', lv:rl.mpm,  tv:rt.mpm,  tid:'t-mpm'},
     {lbl:'📅 Merc AM+repas',    lv:rl.mam,  tv:rt.mam,  tid:'t-mam'},
-    {lbl:'🏕 ALSH vacances',    lv:0, tv:0, tid:null, lMont:rl.alshVacTotal||0, tMont:rt.alshVacTotal||0},
+    {lbl:'🏕 ALSH vacances',    lv:0, tv:0, tid:null, lMont:rl.alshVacTotal||0, tMont:rt.alshVacTotal||0, lDetail:rl.alshVacSemDetail||'', tDetail:rt.alshVacSemDetail||''},
   ];
 
   let rows='';
@@ -1043,8 +1063,8 @@ function renderRecapMensuel(){
     const lMont = lg.lMont !== undefined ? lg.lMont : lg.lv * tarif;
     const tMont = lg.tMont !== undefined ? lg.tMont : lg.tv * tarif;
     const gMont = lMont + tMont;
-    const lc = lMont>0 ? `<span class="cell-lola">${fmt(lMont)}</span><br><span style="color:#ccc;font-size:.65rem;">${lg.lv > 0 && lg.tid ? lg.lv+'×' : ''}</span>` : `<span class="cell-zero">—</span>`;
-    const tc = tMont>0 ? `<span class="cell-thea">${fmt(tMont)}</span><br><span style="color:#ccc;font-size:.65rem;">${lg.tv > 0 && lg.tid ? lg.tv+'×' : ''}</span>` : `<span class="cell-zero">—</span>`;
+    const lc = lMont>0 ? `<span class="cell-lola">${fmt(lMont)}</span><br><span style="color:#ccc;font-size:.65rem;">${lg.lDetail||( lg.lv > 0 && lg.tid ? lg.lv+'×' : '')}</span>` : `<span class="cell-zero">—</span>`;
+    const tc = tMont>0 ? `<span class="cell-thea">${fmt(tMont)}</span><br><span style="color:#ccc;font-size:.65rem;">${lg.tDetail||( lg.tv > 0 && lg.tid ? lg.tv+'×' : '')}</span>` : `<span class="cell-zero">—</span>`;
     const gc = gMont>0 ? `<span class="cell-glob">${fmt(gMont)}</span>` : `<span class="cell-zero">—</span>`;
     rows+=`<tr><td class="left">${lg.lbl}</td><td>${lc}</td><td>${tc}</td><td>${gc}</td></tr>`;
   }
