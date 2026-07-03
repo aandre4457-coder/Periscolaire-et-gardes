@@ -568,7 +568,7 @@ function renderCal(enfant){
     const isOverride = !!ROUL_OVERRIDE[dkey];
     const overrideMark = isOverride ? '<span style="position:absolute;top:1px;right:1px;font-size:.45rem;color:#f59e0b;">✎</span>' : '';
     const roulCell=`<div class="cell" style="position:relative;">
-      <span class="rb rb-${r}" onclick="event.stopPropagation();cycleRoul('${dkey}')" style="cursor:pointer;" title="${isOverride?'Modifié manuellement (cliquer pour changer)':'Cliquer pour modifier ponctuellement'}">${r}</span>
+      <span class="rb rb-${r} roul-btn" data-dkey="${dkey}" style="cursor:pointer;" title="${isOverride?'Modifié manuellement — cliquer pour changer':'Cliquer pour modifier ponctuellement'}">${r}</span>
       ${overrideMark}
     </div>`;
 
@@ -624,6 +624,15 @@ function renderCal(enfant){
     html+=`<div class="${rowCls}">${wkCell}${dateCell}${roulCell}${nouCell}${matCell}${midCell}${soiCell}${mercCell}${noteCell}</div>`;
   }
   document.getElementById(`cal-${enfant}`).innerHTML=html;
+  // Gestionnaire sur chaque badge roulement
+  document.querySelectorAll(`#cal-${enfant} .roul-btn`).forEach(btn=>{
+    btn.addEventListener('click', function(e){
+      e.stopPropagation();
+      e.preventDefault();
+      const dkey = this.getAttribute('data-dkey');
+      if(dkey) cycleRoul(dkey);
+    });
+  });
   recalc(enfant);
 }
 
