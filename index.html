@@ -88,6 +88,8 @@ html{height:-webkit-fill-available;}
 .rb-J{background:#A5D6A7;color:#1B5E20;border:1px solid #388E3C;}
 .rb-F{background:#C8E6C9;color:#1B5E20;border:1px solid #4CAF50;}
 .rb-R{background:#E0E0E0;color:#666;border:1px solid #BDBDBD;}
+.rb-EIR{background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;min-width:38px;}
+.rb-X{background:#f3f4f6;color:#6b7280;border:1px dashed #9ca3af;min-width:48px;}
 .rb-H{background:#F5F5F5;color:#bbb;border:1px solid #e0e0e0;}
 
 .date-n{font-weight:700;font-size:.85rem;}
@@ -210,7 +212,7 @@ html{height:-webkit-fill-available;}
 </style>
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getFirestore, doc, setDoc, getDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getFirestore, doc, setDoc, getDoc, onSnapshot, runTransaction } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 const _fbApp = initializeApp({
   apiKey: "AIzaSyB7PjA_6wmV5uyAqdx3S0eDfXd4twPCid4",
@@ -223,6 +225,7 @@ const _fbApp = initializeApp({
 window._fbDb  = getFirestore(_fbApp);
 window._fbDoc = doc(window._fbDb, 'planning', 'state');
 window._fbSetDoc = setDoc;
+window._fbRunTransaction = runTransaction;
 window._fbGetDoc = getDoc;
 window._fbOnSnapshot = onSnapshot;
 window._fbReady = true;
@@ -235,7 +238,7 @@ console.log('✅ Firebase prêt');
 <div class="header">
   <div>
     <div class="header-title">📅 Planning Périscolaire</div>
-    <div class="header-sub">Lola &amp; Théa · Roulement Nicolas Équipe A T3/4 · CNPE Cattenom</div>
+    <div class="header-sub">Lola &amp; Théa · Roulement Nicolas : EIR 7h–14h (09/11/2026–31/08/2027) · CNPE Cattenom</div>
   </div>
   <div class="month-nav">
     <button onclick="changeMonth(-1)">◀</button>
@@ -460,22 +463,26 @@ console.log('✅ Firebase prêt');
 // ═══════════════════════════════════════════
 const CYCLE=['M','A','A','N','N','R','H','R','R','R','M','M','A','A','A','N','N','R','H','R','H','R','M','M','A','A','N','N','N','R','R','R','H','R','H','J','J','J','J','J','R','H','F','F','F','F','H','M','M'];
 const JAN1_POS=31;
-function getRoul(date){
+function automaticRoul(date){
   const dk=date.getFullYear()+'-'+String(date.getMonth()+1).padStart(2,'0')+'-'+String(date.getDate()).padStart(2,'0');
-  if(ROUL_OVERRIDE[dk]) return ROUL_OVERRIDE[dk];
+  if(dk >= '2027-09-01') return 'X'; // À définir
+  if(dk >= '2026-11-09') return 'EIR'; // 7h–14h, tous les jours du roulement
   const d=Math.round((date-new Date(2026,0,1))/86400000);
   return CYCLE[((JAN1_POS+d)%49+49)%49];
 }
-const ROUL_CYCLE=['M','A','N','J','F','R','H'];
-function cycleRoul(dkey){ pushHistory();
+function getRoul(date){
+  const dk=date.getFullYear()+'-'+String(date.getMonth()+1).padStart(2,'0')+'-'+String(date.getDate()).padStart(2,'0');
+  return Object.prototype.hasOwnProperty.call(ROUL_OVERRIDE,dk) ? ROUL_OVERRIDE[dk] : automaticRoul(date);
+}
+const ROUL_CYCLE=['M','A','N','J','F','R','H','EIR','X'];
+function cycleRoul(dkey){
+  pushHistory();
   const [yy,mm,dd]=dkey.split('-').map(Number);
   const date=new Date(yy,mm-1,dd);
   const current=getRoul(date);
-  const doff=Math.round((date-new Date(2026,0,1))/86400000);
-  const auto=CYCLE[((JAN1_POS+doff)%49+49)%49];
+  const auto=automaticRoul(date);
   const idx=ROUL_CYCLE.indexOf(current);
   const next=ROUL_CYCLE[(idx+1)%ROUL_CYCLE.length];
-  // Si on revient au roulement automatique, supprimer l'override
   if(next===auto) delete ROUL_OVERRIDE[dkey];
   else ROUL_OVERRIDE[dkey]=next;
   autosave();
@@ -616,7 +623,7 @@ function renderCal(enfant){
     const isOverride = !!ROUL_OVERRIDE[dkey];
     const overrideMark = isOverride ? '<span style="position:absolute;top:1px;right:1px;font-size:.45rem;color:#f59e0b;">✎</span>' : '';
     const roulCell=`<div class="cell" style="position:relative;">
-      <span class="rb rb-${r} roul-btn" data-dkey="${dkey}" style="cursor:pointer;" title="${isOverride?'Modifié manuellement — cliquer pour changer':'Cliquer pour modifier ponctuellement'}">${r}</span>
+      <span class="rb rb-${r} roul-btn" data-dkey="${dkey}" style="cursor:pointer;" title="${isOverride?'Modifié manuellement — cliquer pour changer':'Cliquer pour modifier ponctuellement'}">${r==='X'?'À définir':r==='EIR'?'EIR 7–14':r}</span>
       ${overrideMark}
     </div>`;
 
@@ -1240,23 +1247,76 @@ function setTarifs(tarifs){
   });
 }
 
-// Autosave : localStorage immédiat + Firebase avec debounce
-let _fbSaveTimer = null;
-function autosave(){
-  const data = {STATE, CESU_STATE, ROUL_OVERRIDE, curY, curM, tarifs: getTarifs()};
-  localStorage.setItem(LS_KEY, JSON.stringify(data));
-  setStatus('💾 Sauvegardé localement à ' + new Date().toLocaleTimeString('fr-FR'), 'ok');
-
-  clearTimeout(_fbSaveTimer);
-  _fbSaveTimer = setTimeout(async ()=>{
-    if(!window._fbReady) return;
-    try{
-      await window._fbSetDoc(window._fbDoc, {data: JSON.stringify(data), t: Date.now()});
-      setStatus('☁️ Synchronisé à ' + new Date().toLocaleTimeString('fr-FR'), 'ok');
-    }catch(e){
-      setStatus('⚠️ Hors ligne — sauvegardé localement', 'warn');
+// Synchronisation prudente : transaction Firestore et fusion des seules clés modifiées.
+let _fbSaveTimer=null, _fbBusy=false, _fbConnected=false, _fbConflict=false;
+let _fbBaseline=null, _fbPending=false;
+const _copy = x => JSON.parse(JSON.stringify(x));
+const _pack = () => ({STATE:_copy(STATE), CESU_STATE:_copy(CESU_STATE), ROUL_OVERRIDE:_copy(ROUL_OVERRIDE), curY, curM, tarifs:getTarifs()});
+const _same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+function _applyRemote(remote){
+  for(const [obj,field] of [[STATE,'STATE'],[CESU_STATE,'CESU_STATE'],[ROUL_OVERRIDE,'ROUL_OVERRIDE']]){
+    Object.keys(obj).forEach(k=>delete obj[k]); Object.assign(obj,remote[field]||{});
+  }
+  if(remote.tarifs) setTarifs(remote.tarifs);
+  if(curChild!=='recap'){renderCal(curChild);loadCesuInputs();}
+  recalcAll();
+  localStorage.setItem(LS_KEY,JSON.stringify(_pack()));
+}
+function _diff(base,local){
+  const changes={};
+  for(const field of ['STATE','CESU_STATE','ROUL_OVERRIDE','tarifs']){
+    const old=base[field]||{}, now=local[field]||{};
+    const patch={};
+    for(const key of new Set([...Object.keys(old),...Object.keys(now)])){
+      if(!_same(old[key],now[key])) patch[key]=Object.prototype.hasOwnProperty.call(now,key)?_copy(now[key]):null;
     }
-  }, 800);
+    changes[field]=patch;
+  }
+  return changes;
+}
+function autosave(){
+  localStorage.setItem(LS_KEY,JSON.stringify(_pack()));
+  _fbPending=true;
+  clearTimeout(_fbSaveTimer);
+  if(!_fbConnected || _fbConflict){
+    setStatus('⚠️ Modifications locales non synchronisées — vérifier Firebase','warn');return;
+  }
+  setStatus('💾 Enregistrement en attente…','warn');
+  _fbSaveTimer=setTimeout(_syncChanges,900);
+}
+async function _syncChanges(){
+  if(_fbBusy || !_fbConnected || _fbConflict || !_fbBaseline) return;
+  _fbBusy=true;
+  const local=_pack(), base=_copy(_fbBaseline), changes=_diff(base,local);
+  try{
+    let result;
+    await window._fbRunTransaction(window._fbDb,async tx=>{
+      const snap=await tx.get(window._fbDoc);
+      if(!snap.exists()) throw Error('Document Firebase absent : écriture bloquée');
+      const remote=JSON.parse(snap.data().data);
+      const merged=_copy(remote);
+      for(const field of ['STATE','CESU_STATE','ROUL_OVERRIDE','tarifs']){
+        merged[field]=merged[field]||{};
+        for(const [key,value] of Object.entries(changes[field])){
+          if(!_same((remote[field]||{})[key],(base[field]||{})[key])) throw Error('Conflit de modification : '+field+'/'+key);
+          if(value===null) delete merged[field][key]; else merged[field][key]=value;
+        }
+      }
+      // Ne pas remplacer le mois affiché par celui d'un autre appareil.
+      result=merged;
+      tx.update(window._fbDoc,{data:JSON.stringify(merged),t:Date.now()});
+    });
+    _fbBaseline=_copy(result);
+    _fbPending=false;
+    // Reprendre les modifications faites pendant l'envoi, le cas échéant.
+    if(!_same(_pack().STATE,local.STATE)||!_same(_pack().CESU_STATE,local.CESU_STATE)||!_same(_pack().ROUL_OVERRIDE,local.ROUL_OVERRIDE)||!_same(_pack().tarifs,local.tarifs)){
+      _fbPending=true;clearTimeout(_fbSaveTimer);_fbSaveTimer=setTimeout(_syncChanges,900);
+    }else{_applyRemote(result);setStatus('☁️ Synchronisé avec Firebase','ok');}
+  }catch(e){
+    console.error('Écriture bloquée :',e);
+    _fbConflict=true;
+    setStatus('⚠️ Synchronisation bloquée : exporter votre JSON puis recharger','warn');
+  }finally{_fbBusy=false;}
 }
 
 // ═══════════ PWA SERVICE WORKER ═══════════
@@ -1273,14 +1333,8 @@ const _urlParams = new URLSearchParams(window.location.search);
 const _childParam = _urlParams.get('child');
 if (_childParam === 'thea') { curChild = 'thea'; }
 
-// ═══════════ DONNÉES INITIALES (pré-chargées si rien en local) ═══════════
-(function(){
-  if(!localStorage.getItem('planning_periscolaire_v1')){
-    const _s={"2026-08-01_lola": {"nou": false, "mat": false, "mid": false, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": "vacances"}, "2026-08-02_lola": {"nou": false, "mat": false, "mid": false, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": "vacances"}, "2026-08-03_lola": {"nou": false, "mat": false, "mid": false, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": "vacances"}, "2026-08-04_lola": {"nou": false, "mat": false, "mid": false, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": "vacances"}, "2026-08-05_lola": {"nou": false, "mat": false, "mid": false, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": "vacances"}, "2026-08-06_lola": {"nou": false, "mat": false, "mid": false, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": "vacances"}, "2026-08-07_lola": {"nou": false, "mat": false, "mid": false, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": "vacances"}, "2026-08-10_lola": {"nou": false, "mat": false, "mid": false, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": "vacances"}, "2026-08-11_lola": {"nou": false, "mat": false, "mid": false, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": "vacances"}, "2026-08-12_lola": {"nou": false, "mat": false, "mid": false, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": "vacances"}, "2026-08-13_lola": {"nou": false, "mat": false, "mid": false, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": "vacances"}, "2026-08-14_lola": {"nou": false, "mat": false, "mid": false, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": "vacances"}, "2026-08-17_lola": {"nou": false, "mat": false, "mid": false, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": "HUMANIMED"}, "2026-08-18_lola": {"nou": false, "mat": false, "mid": false, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": "HUMANIMED"}, "2026-08-19_lola": {"nou": false, "mat": false, "mid": false, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": "Brigitte - 7h45 - 16H30"}, "2026-08-20_lola": {"nou": false, "mat": false, "mid": false, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": "Brigitte - 7h45 - 16H30"}, "2026-08-25_lola": {"nou": false, "mat": false, "mid": false, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": "Brigitte - 7h45 - 16H30"}, "2026-08-26_lola": {"nou": false, "mat": false, "mid": false, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": "Brigitte - 7h45 - 16H30"}, "2026-08-27_lola": {"nou": false, "mat": false, "mid": false, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": "Brigitte - 11H- 16H30"}, "2026-08-28_lola": {"nou": false, "mat": false, "mid": false, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": "Brigitte - 11H- 16H30"}, "2026-08-31_lola": {"nou": false, "mat": false, "mid": false, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": "Marianne ? "}, "2026-08-17_thea": {"nou": false, "mat": false, "mid": false, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": "HUMANIMED"}, "2026-08-18_thea": {"nou": false, "mat": false, "mid": false, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": "HUMANIMED"}, "2026-08-19_thea": {"nou": false, "mat": false, "mid": false, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": "BRIGITTE - 7H45 / 16H30"}, "2026-08-20_thea": {"nou": false, "mat": false, "mid": false, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": "BRIGITTE - 7H45 / 16H30"}, "2026-08-25_thea": {"nou": false, "mat": false, "mid": false, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": "BRIGITTE - 7H45 / 16H30"}, "2026-08-26_thea": {"nou": false, "mat": false, "mid": false, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": "BRIGITTE - 7H45 / 16H30"}, "2026-08-27_thea": {"nou": false, "mat": false, "mid": false, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": "BRIGITTE - 11H / 16H30"}, "2026-08-28_thea": {"nou": false, "mat": false, "mid": false, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": "BRIGITTE - 11H / 16H30"}, "2026-08-31_thea": {"nou": false, "mat": false, "mid": false, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": "Marianne ? "}, "2026-09-01_lola": {"nou": false, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": "Rentrée scolaire"}, "2026-09-03_lola": {"nou": false, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-09-04_lola": {"nou": false, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-09-07_lola": {"nou": false, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-09-08_lola": {"nou": false, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-09-10_lola": {"nou": false, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-09-11_lola": {"nou": false, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-09-14_lola": {"nou": false, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-09-15_lola": {"nou": false, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-09-17_lola": {"nou": false, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-09-18_lola": {"nou": false, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-09-21_lola": {"nou": true, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-09-22_lola": {"nou": false, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-09-23_lola": {"nou": false, "mat": false, "mid": false, "soi": false, "mercE": false, "mercPM": false, "mercAM": true, "alsh": 0, "note": ""}, "2026-09-25_lola": {"nou": true, "mat": false, "mid": false, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-09-28_lola": {"nou": false, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-09-29_lola": {"nou": false, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-07-01_lola": {"nou": false, "mat": false, "mid": false, "soi": false, "mercE": true, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-07-02_lola": {"nou": false, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-07-03_lola": {"nou": false, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-07-07_lola": {"nou": false, "mat": false, "mid": false, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": "brigitte "}, "2026-07-08_lola": {"nou": false, "mat": false, "mid": false, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": "marianne"}, "2026-07-09_lola": {"nou": false, "mat": false, "mid": false, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": "Aurélie"}, "2026-07-10_lola": {"nou": false, "mat": false, "mid": false, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": "Marianne ?"}, "2026-06-01_lola": {"nou": true, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-06-02_lola": {"nou": true, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-06-04_lola": {"nou": false, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-06-05_lola": {"nou": true, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-06-08_lola": {"nou": false, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-06-09_lola": {"nou": true, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-06-10_lola": {"nou": false, "mat": false, "mid": false, "soi": false, "mercE": true, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-06-11_lola": {"nou": true, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-06-12_lola": {"nou": false, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-06-15_lola": {"nou": true, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-06-16_lola": {"nou": false, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-06-17_lola": {"nou": false, "mat": false, "mid": false, "soi": false, "mercE": false, "mercPM": false, "mercAM": true, "alsh": 0, "note": ""}, "2026-06-18_lola": {"nou": false, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-06-19_lola": {"nou": false, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-06-22_lola": {"nou": false, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-06-23_lola": {"nou": false, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-06-25_lola": {"nou": true, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-06-26_lola": {"nou": true, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-06-29_lola": {"nou": false, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-06-30_lola": {"nou": false, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-06-01_thea": {"nou": true, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-06-02_thea": {"nou": true, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-06-05_thea": {"nou": true, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-06-08_thea": {"nou": false, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-06-09_thea": {"nou": true, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-06-10_thea": {"nou": false, "mat": false, "mid": false, "soi": false, "mercE": true, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-06-11_thea": {"nou": true, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-06-12_thea": {"nou": false, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-06-15_thea": {"nou": true, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-06-16_thea": {"nou": false, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-06-17_thea": {"nou": false, "mat": false, "mid": false, "soi": false, "mercE": false, "mercPM": false, "mercAM": true, "alsh": 0, "note": ""}, "2026-06-18_thea": {"nou": false, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-06-19_thea": {"nou": false, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-06-22_thea": {"nou": false, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-06-23_thea": {"nou": false, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-06-25_thea": {"nou": true, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-06-26_thea": {"nou": true, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-06-29_thea": {"nou": false, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}, "2026-06-30_thea": {"nou": false, "mat": false, "mid": true, "soi": false, "mercE": false, "mercPM": false, "mercAM": false, "alsh": 0, "note": ""}};
-    const _t={"t-nou": "5.00", "t-mat": "2.32", "t-mid": "8.69", "t-soi": "2.32", "t-me": "23.76", "t-mpm": "17.95", "t-mam": "14.49", "t-al2": "39.38", "t-al3": "55.14", "t-al4": "69.76", "t-al5": "84.40", "t-als": "95.04"};
-    localStorage.setItem('planning_periscolaire_v1', JSON.stringify({STATE:_s, CESU_STATE:{}, ROUL_OVERRIDE:{}, tarifs:_t}));
-  }
-})();
+// Aucun jeu de données préchargé : Firebase est la source de vérité.
+// Les données locales ne sont jamais envoyées automatiquement à l'ouverture.
 
 // ═══════════ INIT ═══════════
 // Charger données sauvegardées
@@ -1299,45 +1353,33 @@ if(loaded){
   setStatus('🔄 Connexion Firebase…', '');
 }
 
-// Connexion Firebase : attente avec retry jusqu'à 5 secondes
+// La lecture Firebase ne déclenche aucune écriture.
 function _connectFirebase(tentative){
-  if(tentative > 10){ setStatus('⚠️ Firebase indisponible — mode local', 'warn'); return; }
-  if(!window._fbReady){ setTimeout(()=>_connectFirebase(tentative+1), 500); return; }
-
+  if(tentative>10){setStatus('⚠️ Firebase indisponible — lecture locale uniquement','warn');return;}
+  if(!window._fbReady){setTimeout(()=>_connectFirebase(tentative+1),500);return;}
   window._fbGetDoc(window._fbDoc).then(snap=>{
-    if(snap.exists()){
+    if(!snap.exists()){setStatus('⚠️ Aucun document Firebase — écriture désactivée','warn');return;}
+    const remote=JSON.parse(snap.data().data);
+    if(!remote.STATE) throw Error('Données Firebase invalides');
+    _fbBaseline=_copy(remote);
+    _fbConnected=true;
+    _applyRemote(remote);
+    setStatus('✅ Firebase connecté — données chargées','ok');
+    window._fbOnSnapshot(window._fbDoc,snapshot=>{
+      if(!snapshot.exists()||snapshot.metadata.hasPendingWrites) return;
       try{
-        const remote = JSON.parse(snap.data().data);
-        if(remote.STATE){ Object.keys(STATE).forEach(k=>delete STATE[k]); Object.assign(STATE, remote.STATE); }
-        if(remote.CESU_STATE){ Object.keys(CESU_STATE).forEach(k=>delete CESU_STATE[k]); Object.assign(CESU_STATE, remote.CESU_STATE); }
-        if(remote.ROUL_OVERRIDE){ Object.keys(ROUL_OVERRIDE).forEach(k=>delete ROUL_OVERRIDE[k]); Object.assign(ROUL_OVERRIDE, remote.ROUL_OVERRIDE); }
-        if(remote.tarifs) setTarifs(remote.tarifs);
-        if(curChild!=='recap'){ renderCal(curChild); loadCesuInputs(); }
-        recalcAll();
-        localStorage.setItem(LS_KEY, JSON.stringify({STATE, CESU_STATE, curY, curM, tarifs: getTarifs()}));
-      }catch(e){ console.error('Erreur lecture Firebase:', e); }
-    }
-    setStatus('✅ Connecté — synchronisation active', 'ok');
-
-    // Écoute temps réel
-    window._fbOnSnapshot(window._fbDoc, snap=>{
-      if(!snap.exists()) return;
-      try{
-        const remote = JSON.parse(snap.data().data);
-        if(remote.STATE){ Object.keys(STATE).forEach(k=>delete STATE[k]); Object.assign(STATE, remote.STATE); }
-        if(remote.CESU_STATE){ Object.keys(CESU_STATE).forEach(k=>delete CESU_STATE[k]); Object.assign(CESU_STATE, remote.CESU_STATE); }
-        if(remote.ROUL_OVERRIDE){ Object.keys(ROUL_OVERRIDE).forEach(k=>delete ROUL_OVERRIDE[k]); Object.assign(ROUL_OVERRIDE, remote.ROUL_OVERRIDE); }
-        if(remote.ROUL_OVERRIDE){ Object.keys(ROUL_OVERRIDE).forEach(k=>delete ROUL_OVERRIDE[k]); Object.assign(ROUL_OVERRIDE, remote.ROUL_OVERRIDE); }
-        if(remote.tarifs) setTarifs(remote.tarifs);
-        if(curChild!=='recap'){ renderCal(curChild); loadCesuInputs(); }
-        recalcAll();
-        setStatus('🔄 Mis à jour par un autre appareil', 'ok');
-      }catch(e){ console.error('Erreur sync Firebase:', e); }
+        const next=JSON.parse(snapshot.data().data);
+        if(_fbPending || _fbBusy){
+          // Ne jamais effacer une saisie locale en attente.
+          if(!_same(next,_fbBaseline)) setStatus('⚠️ Mise à jour distante reçue — synchronisation en attente','warn');
+          return;
+        }
+        _fbBaseline=_copy(next);
+        _applyRemote(next);
+        setStatus('☁️ Planning à jour sur cet appareil','ok');
+      }catch(e){console.error(e);setStatus('⚠️ Lecture Firebase impossible','warn');}
     });
-  }).catch(err=>{
-    console.error('Erreur connexion Firebase:', err);
-    setStatus('⚠️ Hors ligne — données locales uniquement', 'warn');
-  });
+  }).catch(err=>{console.error(err);setStatus('⚠️ Firebase inaccessible — modifications non synchronisées','warn');});
 }
 _connectFirebase(0);
 </script>
