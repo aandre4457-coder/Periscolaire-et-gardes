@@ -549,7 +549,24 @@ const ALSH_LBL={0:'ALSH?',2:'2j',3:'3j',4:'4j',5:'5j','S':'Gdes vacs'};
 
 function sk(y,m,d,c){return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}_${c}`;}
 function dk(y,m,d){return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;}
-function gs(k){if(!STATE[k])STATE[k]={nou:false,mat:false,mid:false,soi:false,mercE:false,mercPM:false,mercAM:false,alsh:0,alshVac:false,note:'',noteRed:false};return STATE[k];}
+// Nounou par défaut uniquement sur les nouvelles journées EIR éligibles.
+// Une journée déjà enregistrée (même avec nou:false) n'est jamais modifiée.
+function defaultNounou(k){
+  const dateKey=k.split('_')[0];
+  if(dateKey<'2026-11-09'||dateKey>'2027-08-31') return false;
+  const [y,m,d]=dateKey.split('-').map(Number);
+  const date=new Date(y,m-1,d), dow=date.getDay();
+  if(dow===0||dow===6||FERIES.has(dateKey)) return false;
+  const isSummer=(m===7||m===8);
+  if(VACANCES.has(dateKey)&&!isSummer) return false;
+  return getRoul(date)==='EIR';
+}
+function gs(k){
+  if(!Object.prototype.hasOwnProperty.call(STATE,k)){
+    STATE[k]={nou:defaultNounou(k),mat:false,mid:false,soi:false,mercE:false,mercPM:false,mercAM:false,alsh:0,alshVac:false,note:'',noteRed:false};
+  }
+  return STATE[k];
+}
 
 function wn(date){
   const d=new Date(Date.UTC(date.getFullYear(),date.getMonth(),date.getDate()));
@@ -793,6 +810,8 @@ function dupliquerMois(){
       delete STATE[kd];
     }
   }
+  autosave();
+  if(curChild!=='recap') renderCal(curChild);
   // Feedback visuel
   const btn = document.getElementById('dup-btn');
   const lbl = document.getElementById('dup-label');
@@ -1322,7 +1341,7 @@ async function _syncChanges(){
 // ═══════════ PWA SERVICE WORKER ═══════════
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
+    navigator.serviceWorker.register('./sw.js')
       .then(reg => console.log('SW enregistré:', reg.scope))
       .catch(err => console.log('SW erreur:', err));
   });
