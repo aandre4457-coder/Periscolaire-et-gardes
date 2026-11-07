@@ -565,7 +565,15 @@ function gs(k){
   if(!Object.prototype.hasOwnProperty.call(STATE,k)){
     STATE[k]={nou:defaultNounou(k),mat:false,mid:false,soi:false,mercE:false,mercPM:false,mercAM:false,alsh:0,alshVac:false,note:'',noteRed:false};
   }
-  return STATE[k];
+  const s=STATE[k];
+  // Anciennes cases vierges : activer le défaut EIR. Les choix explicites
+  // effectués avec cette version sont mémorisés via nouManual.
+  if(defaultNounou(k) && !s.nouManual && !s.nou &&
+     !s.mat && !s.mid && !s.soi && !s.mercE && !s.mercPM && !s.mercAM &&
+     !s.alsh && !s.alshVac && !s.note && !s.noteRed){
+    s.nou=true;
+  }
+  return s;
 }
 
 function wn(date){
@@ -640,7 +648,7 @@ function renderCal(enfant){
     const isOverride = !!ROUL_OVERRIDE[dkey];
     const overrideMark = isOverride ? '<span style="position:absolute;top:1px;right:1px;font-size:.45rem;color:#f59e0b;">✎</span>' : '';
     const roulCell=`<div class="cell" style="position:relative;">
-      <span class="rb rb-${r} roul-btn" data-dkey="${dkey}" style="cursor:pointer;" title="${isOverride?'Modifié manuellement — cliquer pour changer':'Cliquer pour modifier ponctuellement'}">${r==='X'?'À définir':r==='EIR'?'EIR 7–14':r}</span>
+      <span class="rb rb-${r} roul-btn" data-dkey="${dkey}" style="cursor:pointer;" title="${isOverride?'Modifié manuellement — cliquer pour changer':'Cliquer pour modifier ponctuellement'}">${r==='X'?'À définir':r==='EIR'?'EIR':r}</span>
       ${overrideMark}
     </div>`;
 
@@ -870,6 +878,7 @@ function tog(k,f){ pushHistory();
   if(f==='mercPM'&&!s.mercPM){s.mercE=false;s.mercAM=false;}
   if(f==='mercAM'&&!s.mercAM){s.mercE=false;s.mercPM=false;}
   s[f]=!s[f];
+  if(f==='nou') s.nouManual=true;
   renderCal(curChild);
   autosave();
 }
